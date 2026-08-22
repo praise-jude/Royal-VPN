@@ -29,3 +29,9 @@ export function computeConnectionScore({ ping, packetLoss, jitter, load, latency
 
   return { score, label, color };
 }
+
+export function rankServers(servers, latencyPenalty = 0) {
+  return servers
+    .map((sv) => ({ ...sv, quality: computeConnectionScore({ ...sv, latencyPenalty }) }))
+    .sort((a, b) => b.quality.score - a.quality.score);
+}

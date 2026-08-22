@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import AiRouteBanner from '../components/AiRouteBanner';
 import { colors, font } from '../theme';
 
 function loadColor(load) {
@@ -8,7 +9,7 @@ function loadColor(load) {
   return colors.green;
 }
 
-export default function ServersScreen({ servers, selectedId, favorites, onSelect, onToggleFav }) {
+export default function ServersScreen({ servers, selectedId, favorites, onSelect, onToggleFav, bestServer, onUseRecommended }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Servers</Text>
@@ -18,6 +19,10 @@ export default function ServersScreen({ servers, selectedId, favorites, onSelect
         <FontAwesome6 name="magnifying-glass" iconStyle="solid" size={13} color="rgba(255,255,255,0.4)" />
         <Text style={styles.searchPlaceholder}>Search country or city</Text>
       </View>
+
+      {bestServer && bestServer.id !== selectedId && (
+        <AiRouteBanner server={bestServer} onUse={() => onUseRecommended(bestServer.id)} />
+      )}
 
       {servers.map((sv) => {
         const isSelected = sv.id === selectedId;
@@ -38,7 +43,7 @@ export default function ServersScreen({ servers, selectedId, favorites, onSelect
             <View style={{ flex: 1 }}>
               <View style={styles.cityRow}>
                 <Text style={styles.city}>{sv.city}</Text>
-                {sv.recommended && (
+                {bestServer && sv.id === bestServer.id && (
                   <View style={styles.bestBadge}>
                     <Text style={styles.bestBadgeText}>BEST</Text>
                   </View>

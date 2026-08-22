@@ -20,7 +20,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import SplitTunnelScreen from './src/screens/SplitTunnelScreen';
 import { servers as initialServers, devices as initialDevices, connectionModes } from './src/data';
 import { colors } from './src/theme';
-import { formatDuration, computeConnectionScore } from './src/utils';
+import { formatDuration, computeConnectionScore, rankServers } from './src/utils';
 
 function AppContent() {
   const [tab, setTab] = useState('home');
@@ -82,6 +82,12 @@ function AppContent() {
     [server, activeMode]
   );
 
+  const rankedServers = useMemo(
+    () => rankServers(initialServers, activeMode.latencyPenalty),
+    [activeMode]
+  );
+  const bestServer = rankedServers[0];
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -120,11 +126,13 @@ function AppContent() {
               )}
               {tab === 'servers' && (
                 <ServersScreen
-                  servers={initialServers}
+                  servers={rankedServers}
                   selectedId={server.id}
                   favorites={favorites}
                   onSelect={setServerId}
                   onToggleFav={(id) => setFavorites((f) => ({ ...f, [id]: !f[id] }))}
+                  bestServer={bestServer}
+                  onUseRecommended={setServerId}
                 />
               )}
               {tab === 'security' && (

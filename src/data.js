@@ -1,5 +1,5 @@
 export const servers = [
-  { id: 'lagos', country: 'Nigeria', city: 'Lagos', ping: 22, load: 34, packetLoss: 0.1, jitter: 2, recommended: true },
+  { id: 'lagos', country: 'Nigeria', city: 'Lagos', ping: 22, load: 34, packetLoss: 0.1, jitter: 2 },
   { id: 'london', country: 'United Kingdom', city: 'London', ping: 48, load: 51, packetLoss: 0.3, jitter: 4 },
   { id: 'newyork', country: 'United States', city: 'New York', ping: 61, load: 40, packetLoss: 0.2, jitter: 5 },
   { id: 'california', country: 'United States', city: 'California', ping: 74, load: 28, packetLoss: 0.1, jitter: 3 },
