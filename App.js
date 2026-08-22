@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, AppState, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Network from 'expo-network';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -103,6 +103,8 @@ const NETWORK_LABELS = {
 };
 
 function AppContent() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 58 + Math.max(insets.bottom, 12);
   const [tab, setTab] = useState('home');
   const [connected, setConnected] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -428,7 +430,7 @@ function AppContent() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 20 }]}
           showsVerticalScrollIndicator={false}
         >
           {subScreen === 'split-tunnel' ? (
@@ -624,7 +626,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   safeArea: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { paddingTop: 8, paddingBottom: 100 },
+  scrollContent: { paddingTop: 8 },
   fullBleed: { flex: 1 },
   desktopBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   phoneFrame: {

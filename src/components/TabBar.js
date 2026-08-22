@@ -1,11 +1,15 @@
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { tabsDef } from '../data';
 import { colors, font } from '../theme';
 
 export default function TabBar({ activeTab, onChange }) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 12);
+
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { height: 58 + bottomPad, paddingBottom: bottomPad }]}>
       {tabsDef.map((t) => {
         const active = activeTab === t.key;
         const color = active ? colors.orange : colors.textFaint45;
@@ -26,8 +30,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 78,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 12,
     flexDirection: 'row',
     backgroundColor: 'rgba(3,7,18,0.92)',
     borderTopWidth: 1,
