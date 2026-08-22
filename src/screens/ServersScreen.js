@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import AiRouteBanner from '../components/AiRouteBanner';
+import { regions } from '../data';
 import { colors, font } from '../theme';
 
 function loadColor(load) {
@@ -13,15 +14,25 @@ function loadColor(load) {
 export default function ServersScreen({ servers, selectedId, favorites, onSelect, onToggleFav, bestServer, onUseRecommended }) {
   const [query, setQuery] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [region, setRegion] = useState('all');
+
+  const regionCounts = useMemo(() => {
+    const counts = {};
+    servers.forEach((sv) => {
+      counts[sv.region] = (counts[sv.region] || 0) + 1;
+    });
+    return counts;
+  }, [servers]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return servers.filter((sv) => {
+      if (region !== 'all' && sv.region !== region) return false;
       if (favoritesOnly && !favorites[sv.id]) return false;
       if (!q) return true;
       return sv.city.toLowerCase().includes(q) || sv.country.toLowerCase().includes(q);
     });
-  }, [servers, query, favoritesOnly, favorites]);
+  }, [servers, query, favoritesOnly, favorites, region]);
 
   return (
     <View style={styles.container}>
@@ -57,13 +68,41 @@ export default function ServersScreen({ servers, selectedId, favorites, onSelect
         </Pressable>
       </View>
 
-      {bestServer && bestServer.id !== selectedId && !query && !favoritesOnly && (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.regionRow}
+      >
+        {regions.map((r) => {
+          const isActive = region === r.key;
+          const count = r.key === 'all' ? servers.length : regionCounts[r.key] || 0;
+          return (
+            <Pressable
+              key={r.key}
+              onPress={() => setRegion(r.key)}
+              style={[styles.regionChip, isActive && styles.regionChipActive]}
+            >
+              <FontAwesome6
+                name={r.icon}
+                iconStyle="solid"
+                size={12}
+                color={isActive ? '#000' : colors.textFaint7}
+              />
+              <Text style={[styles.regionChipText, isActive && styles.regionChipTextActive]}>
+                {r.label} ({count})
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {bestServer && bestServer.id !== selectedId && !query && !favoritesOnly && region === 'all' && (
         <AiRouteBanner server={bestServer} onUse={() => onUseRecommended(bestServer.id)} />
       )}
 
       {filtered.length === 0 && (
         <Text style={styles.emptyText}>
-          {favoritesOnly ? 'No favorite servers yet — tap the star on a server to save it.' : 'No servers match your search.'}
+          {favoritesOnly ? 'No favorite servers yet — tap the star on a server to save it.' : 'No servers match this filter.'}
         </Text>
       )}
 
@@ -137,6 +176,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   favChipActive: { backgroundColor: colors.orange },
+  regionRow: { gap: 8, paddingBottom: 4, marginBottom: 14 },
+  regionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface06,
+    borderRadius: 9999,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  regionChipActive: { backgroundColor: colors.orange },
+  regionChipText: { fontFamily: font.semibold, fontSize: 12, color: colors.textFaint7 },
+  regionChipTextActive: { color: '#000' },
   emptyText: {
     fontFamily: font.regular,
     fontSize: 13,
