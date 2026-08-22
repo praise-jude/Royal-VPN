@@ -30,6 +30,7 @@ import NetworkHistoryScreen from './src/screens/NetworkHistoryScreen';
 import TrustedNetworksScreen from './src/screens/TrustedNetworksScreen';
 import PlansScreen from './src/screens/PlansScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import { isRealVpnAvailable, requestVpnPermission, startRealVpn, stopRealVpn } from './src/native/royalVpn';
 import {
   servers as initialServers,
   devices as initialDevices,
@@ -219,13 +220,25 @@ function AppContent() {
       setConnected(false);
       setSeconds(0);
       logEvent('disconnect', 'Manually disconnected');
+      stopRealVpn();
     } else {
       setConnecting(true);
-      setTimeout(() => {
-        setConnecting(false);
-        setConnected(true);
-        logEvent('connect', 'Connected');
-      }, 1400);
+      (async () => {
+        if (isRealVpnAvailable) {
+          const granted = await requestVpnPermission();
+          if (!granted) {
+            setConnecting(false);
+            logEvent('disconnect', 'VPN permission was not granted');
+            return;
+          }
+          await startRealVpn();
+        }
+        setTimeout(() => {
+          setConnecting(false);
+          setConnected(true);
+          logEvent('connect', 'Connected');
+        }, 1400);
+      })();
     }
   }, [connected, connecting, logEvent]);
 
