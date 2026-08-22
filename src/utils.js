@@ -53,6 +53,22 @@ export function formatRelativeTime(ts) {
   return `${hr}h ago`;
 }
 
+export function getNetworkRecommendation({ loss, jitter, download, qualityScore }) {
+  if (loss > 1) {
+    return 'High packet loss detected — try switching to a different server.';
+  }
+  if (jitter > 6) {
+    return 'Jitter is elevated — a more stable server may improve calls and gaming.';
+  }
+  if (qualityScore < 60) {
+    return 'Connection quality is poor — Royal AI Route may find a healthier server.';
+  }
+  if (download < 40) {
+    return 'Download speed is below average for this server — try the AI-recommended server on the Servers tab.';
+  }
+  return 'Excellent connection — no action needed.';
+}
+
 export function rankServers(servers, latencyPenalty = 0) {
   return servers
     .map((sv) => ({ ...sv, quality: computeConnectionScore({ ...sv, latencyPenalty }) }))

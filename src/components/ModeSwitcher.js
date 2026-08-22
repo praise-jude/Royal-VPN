@@ -31,6 +31,23 @@ export default function ModeSwitcher({ mode, onChange }) {
         })}
       </View>
       <Text style={styles.tagline}>{active.tagline}</Text>
+
+      <View style={styles.tradeoffRow}>
+        <View style={styles.tradeoffItem}>
+          <Text style={styles.tradeoffLabel}>PRIVACY</Text>
+          <Text style={styles.tradeoffValue}>{active.tradeoff.privacy}</Text>
+        </View>
+        <View style={styles.tradeoffDivider} />
+        <View style={styles.tradeoffItem}>
+          <Text style={styles.tradeoffLabel}>SPEED</Text>
+          <Text style={styles.tradeoffValue}>{active.tradeoff.speed}</Text>
+        </View>
+        <View style={styles.tradeoffDivider} />
+        <View style={styles.tradeoffItem}>
+          <Text style={styles.tradeoffLabel}>LATENCY</Text>
+          <Text style={styles.tradeoffValue}>{active.tradeoff.latency}</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -63,4 +80,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
+  tradeoffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface06,
+    borderRadius: 10,
+    paddingVertical: 8,
+    marginTop: 10,
+  },
+  tradeoffItem: { flex: 1, alignItems: 'center' },
+  tradeoffDivider: { width: 1, height: 20, backgroundColor: colors.surface08 },
+  tradeoffLabel: {
+    fontFamily: font.regular,
+    fontSize: 8.5,
+    color: colors.textFaint45,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  tradeoffValue: { fontFamily: font.bold, fontSize: 10.5, color: '#fff' },
 });

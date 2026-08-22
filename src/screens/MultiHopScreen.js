@@ -1,7 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import BackHeader from '../components/BackHeader';
 import HopChain from '../components/HopChain';
-import { servers } from '../data';
+import { servers, connectionModes } from '../data';
 import { computeMultiHopQuality } from '../utils';
 import { colors, font } from '../theme';
 
@@ -43,6 +43,7 @@ export default function MultiHopScreen({ entryId, exitId, onSelectEntry, onSelec
   const entry = servers.find((s) => s.id === entryId) || servers[0];
   const exit = servers.find((s) => s.id === exitId) || servers[1];
   const quality = computeMultiHopQuality(entry, exit);
+  const tradeoff = connectionModes.find((m) => m.key === 'privacy').tradeoff;
 
   return (
     <View>
@@ -66,6 +67,23 @@ export default function MultiHopScreen({ entryId, exitId, onSelectEntry, onSelec
             <Text style={[styles.statValue, { color: quality.color }]}>
               {quality.score}% · {quality.label}
             </Text>
+          </View>
+        </View>
+
+        <View style={styles.tradeoffRow}>
+          <View style={styles.tradeoffItem}>
+            <Text style={styles.tradeoffLabel}>PRIVACY</Text>
+            <Text style={styles.tradeoffValue}>{tradeoff.privacy}</Text>
+          </View>
+          <View style={styles.tradeoffDivider} />
+          <View style={styles.tradeoffItem}>
+            <Text style={styles.tradeoffLabel}>SPEED</Text>
+            <Text style={styles.tradeoffValue}>{tradeoff.speed}</Text>
+          </View>
+          <View style={styles.tradeoffDivider} />
+          <View style={styles.tradeoffItem}>
+            <Text style={styles.tradeoffLabel}>LATENCY</Text>
+            <Text style={styles.tradeoffValue}>{tradeoff.latency}</Text>
           </View>
         </View>
 
@@ -96,6 +114,25 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, backgroundColor: colors.surface05, borderRadius: 14, padding: 14, alignItems: 'center' },
   statLabel: { fontFamily: font.regular, fontSize: 10, color: colors.textFaint5, letterSpacing: 0.5, marginBottom: 4 },
   statValue: { fontFamily: font.bold, fontSize: 14, color: '#fff' },
+  tradeoffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface06,
+    borderRadius: 10,
+    paddingVertical: 10,
+    marginBottom: 22,
+  },
+  tradeoffItem: { flex: 1, alignItems: 'center' },
+  tradeoffDivider: { width: 1, height: 20, backgroundColor: colors.surface08 },
+  tradeoffLabel: {
+    fontFamily: font.regular,
+    fontSize: 8.5,
+    color: colors.textFaint45,
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  tradeoffValue: { fontFamily: font.bold, fontSize: 10.5, color: '#fff' },
   sectionTitle: { fontFamily: font.bold, fontSize: 12, color: colors.textFaint6, letterSpacing: 0.5, marginBottom: 8 },
   card: { backgroundColor: colors.surface05, borderRadius: 16, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },

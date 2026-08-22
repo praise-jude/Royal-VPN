@@ -51,6 +51,7 @@ export const connectionModes = [
     protocolLabel: 'WireGuard · Single-hop',
     hops: 1,
     latencyPenalty: 0,
+    tradeoff: { privacy: 'STANDARD', speed: 'HIGHEST', latency: 'LOWEST' },
   },
   {
     key: 'balanced',
@@ -60,6 +61,7 @@ export const connectionModes = [
     protocolLabel: 'WireGuard · Balanced',
     hops: 1,
     latencyPenalty: 4,
+    tradeoff: { privacy: 'ENHANCED', speed: 'HIGH', latency: 'LOW' },
   },
   {
     key: 'privacy',
@@ -69,6 +71,7 @@ export const connectionModes = [
     protocolLabel: 'WireGuard · Multi-hop',
     hops: 2,
     latencyPenalty: 22,
+    tradeoff: { privacy: 'HIGH', speed: 'MODERATE', latency: 'HIGHER' },
   },
 ];
 

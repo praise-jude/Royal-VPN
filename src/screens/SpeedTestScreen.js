@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import BackHeader from '../components/BackHeader';
+import { getNetworkRecommendation } from '../utils';
 import { colors, font } from '../theme';
 
 const PHASES = [
@@ -29,7 +30,7 @@ function randomizeResult(key, server) {
   }
 }
 
-export default function SpeedTestScreen({ server, onBack, onComplete }) {
+export default function SpeedTestScreen({ server, quality, onBack, onComplete }) {
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState({});
@@ -113,6 +114,46 @@ export default function SpeedTestScreen({ server, onBack, onComplete }) {
                 </View>
               ))}
             </View>
+
+            <View style={styles.doctorCard}>
+              <Text style={styles.doctorTitle}>ROYAL NETWORK DOCTOR</Text>
+              <View style={styles.doctorRow}>
+                <Text style={styles.doctorLabel}>Latency</Text>
+                <Text style={styles.doctorValue}>{results.ping} ms</Text>
+              </View>
+              <View style={styles.doctorRow}>
+                <Text style={styles.doctorLabel}>Jitter</Text>
+                <Text style={styles.doctorValue}>{results.jitter} ms</Text>
+              </View>
+              <View style={styles.doctorRow}>
+                <Text style={styles.doctorLabel}>Packet Loss</Text>
+                <Text style={styles.doctorValue}>{results.loss}%</Text>
+              </View>
+              <View style={styles.doctorRow}>
+                <Text style={styles.doctorLabel}>VPN Quality</Text>
+                <Text style={styles.doctorValue}>{quality.score}%</Text>
+              </View>
+              <View style={styles.doctorRow}>
+                <Text style={styles.doctorLabel}>Server Load</Text>
+                <Text style={styles.doctorValue}>{server.load}%</Text>
+              </View>
+              <View style={styles.doctorDivider} />
+              <View style={styles.doctorStatusRow}>
+                <Text style={styles.doctorStatusLabel}>STATUS</Text>
+                <Text style={[styles.doctorStatusValue, { color: quality.color }]}>
+                  {quality.label.toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.doctorRecommendation}>
+                {getNetworkRecommendation({
+                  loss: results.loss,
+                  jitter: results.jitter,
+                  download: results.download,
+                  qualityScore: quality.score,
+                })}
+              </Text>
+            </View>
+
             <Pressable onPress={rerun} style={styles.rerunBtn}>
               <FontAwesome6 name="arrow-rotate-right" iconStyle="solid" size={14} color="#000" />
               <Text style={styles.rerunText}>Run Again</Text>
@@ -149,6 +190,16 @@ const styles = StyleSheet.create({
   resultValue: { fontFamily: font.extrabold, fontSize: 20, color: '#fff' },
   resultUnit: { fontFamily: font.regular, fontSize: 12, color: colors.textFaint5 },
   resultLabel: { fontFamily: font.regular, fontSize: 12, color: colors.textFaint6, textTransform: 'capitalize' },
+  doctorCard: { backgroundColor: colors.surface05, borderRadius: 16, padding: 16, marginBottom: 16 },
+  doctorTitle: { fontFamily: font.bold, fontSize: 11, color: colors.textFaint5, letterSpacing: 0.8, marginBottom: 12 },
+  doctorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 5 },
+  doctorLabel: { fontFamily: font.regular, fontSize: 13, color: colors.textFaint7 },
+  doctorValue: { fontFamily: font.semibold, fontSize: 13, color: '#fff' },
+  doctorDivider: { height: 1, backgroundColor: colors.surface08, marginVertical: 10 },
+  doctorStatusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  doctorStatusLabel: { fontFamily: font.bold, fontSize: 12, color: colors.textFaint6, letterSpacing: 0.5 },
+  doctorStatusValue: { fontFamily: font.extrabold, fontSize: 14, letterSpacing: 0.5 },
+  doctorRecommendation: { fontFamily: font.regular, fontSize: 12, color: colors.textFaint7, lineHeight: 17 },
   rerunBtn: {
     flexDirection: 'row',
     alignItems: 'center',

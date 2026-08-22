@@ -32,18 +32,20 @@ export default function SecurityScreen({
   onToggleAuto,
   onToggle2FA,
   onToggleAppLock,
+  lockdownEnabled,
+  onToggleLockdown,
   trustedNetworksCount,
   onOpenSplitTunnel,
   onOpenThreatBlocker,
   onOpenTrustedNetworks,
 }) {
   const checks = [
-    { label: 'IP protected', pass: connected },
+    { label: 'Public IP protected', pass: connected },
     { label: 'DNS protected', pass: connected },
     { label: 'IPv6 protected', pass: connected },
     { label: 'WebRTC protected', pass: connected },
+    { label: 'VPN tunnel active', pass: connected },
     { label: 'Kill switch active', pass: killSwitch },
-    { label: 'VPN encryption active', pass: connected },
     { label: 'Secure DNS active', pass: connected },
   ];
 
@@ -74,6 +76,22 @@ export default function SecurityScreen({
         subtitle="Block traffic if VPN drops"
         right={<Toggle value={killSwitch} onToggle={onToggleKill} />}
       />
+      <View style={styles.lockdownRow}>
+        <Row
+          icon="lock-open"
+          title="Royal Lockdown"
+          subtitle="Block ALL traffic unless VPN is connected"
+          right={<Toggle value={lockdownEnabled} onToggle={onToggleLockdown} />}
+        />
+        {lockdownEnabled && (
+          <View style={styles.lockdownWarning}>
+            <FontAwesome6 name="triangle-exclamation" iconStyle="solid" size={11} color={colors.red} />
+            <Text style={styles.lockdownWarningText}>
+              This can interrupt your internet access if Royal-VPN cannot connect.
+            </Text>
+          </View>
+        )}
+      </View>
       <Row
         icon="wifi"
         title="Auto-Connect"
@@ -139,4 +157,17 @@ const styles = StyleSheet.create({
   rowTitle: { fontFamily: font.semibold, fontSize: 14, color: '#fff' },
   rowSubtitle: { fontFamily: font.regular, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
   statusDot: { width: 8, height: 8, borderRadius: 9999, marginRight: 10 },
+  lockdownRow: {},
+  lockdownWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(239,68,68,0.1)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: -4,
+    marginBottom: 10,
+  },
+  lockdownWarningText: { flex: 1, fontFamily: font.regular, fontSize: 11, color: colors.red, lineHeight: 15 },
 });

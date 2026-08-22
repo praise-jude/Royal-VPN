@@ -95,6 +95,7 @@ const EVENT_META = {
   'wifi-detected': { icon: 'wifi', color: colors.orange },
   'network-change': { icon: 'signal', color: colors.textFaint6 },
   'speed-test': { icon: 'gauge-high', color: colors.orange },
+  lockdown: { icon: 'lock-open', color: colors.red },
 };
 
 const NETWORK_LABELS = {
@@ -112,6 +113,7 @@ function AppContent() {
   const [serverId, setServerId] = useState('lagos');
   const [entryServerId, setEntryServerId] = useState('frankfurt');
   const [killSwitch, setKillSwitch] = useState(true);
+  const [lockdownEnabled, setLockdownEnabled] = useState(false);
   const [autoConnect, setAutoConnect] = useState(true);
   const [twoFA, setTwoFA] = useState(false);
   const [favorites, setFavorites] = useState({ london: true });
@@ -222,6 +224,9 @@ function AppContent() {
       setConnected(false);
       setSeconds(0);
       logEvent('disconnect', 'Manually disconnected');
+      if (lockdownEnabled) {
+        logEvent('lockdown', 'Royal Lockdown is blocking all traffic while disconnected');
+      }
       stopRealVpn();
     } else {
       setConnecting(true);
@@ -242,7 +247,7 @@ function AppContent() {
         }, 1400);
       })();
     }
-  }, [connected, connecting, logEvent]);
+  }, [connected, connecting, logEvent, lockdownEnabled]);
 
   const handleSelectServer = useCallback(
     (id) => {
@@ -459,6 +464,7 @@ function AppContent() {
           ) : subScreen === 'speed-test' ? (
             <SpeedTestScreen
               server={server}
+              quality={quality}
               onBack={() => setSubScreen(null)}
               onComplete={(results) =>
                 logEvent('speed-test', `Speed test: ${results.download} Mbps down / ${results.upload} Mbps up`)
@@ -512,7 +518,12 @@ function AppContent() {
                   quality={quality}
                   entryServer={mode === 'privacy' ? entryServer : null}
                   networkType={networkState?.type}
-                  protectBanner={protectBanner}
+                  protectBanner={
+                    protectBanner ||
+                    (lockdownEnabled && !connected && !connecting
+                      ? 'Royal Lockdown active — all traffic blocked until VPN reconnects'
+                      : '')
+                  }
                   onConnectClick={handleConnectPress}
                   onGoServers={() => setTab('servers')}
                   onOpenMultiHop={() => setSubScreen('multi-hop')}
@@ -543,11 +554,22 @@ function AppContent() {
                   threatsBlockedToday={threatsBlockedToday}
                   appLockEnabled={appLockEnabled}
                   appLockSupported={appLockSupported}
+                  lockdownEnabled={lockdownEnabled}
                   trustedNetworksCount={trustedNetworks.length}
                   onToggleKill={() => setKillSwitch((v) => !v)}
                   onToggleAuto={() => setAutoConnect((v) => !v)}
                   onToggle2FA={() => setTwoFA((v) => !v)}
                   onToggleAppLock={handleToggleAppLock}
+                  onToggleLockdown={() =>
+                    setLockdownEnabled((v) => {
+                      const next = !v;
+                      logEvent(
+                        'lockdown',
+                        next ? 'Royal Lockdown enabled' : 'Royal Lockdown disabled'
+                      );
+                      return next;
+                    })
+                  }
                   onOpenSplitTunnel={() => setSubScreen('split-tunnel')}
                   onOpenThreatBlocker={() => setSubScreen('threat-blocker')}
                   onOpenTrustedNetworks={() => setSubScreen('trusted-networks')}
