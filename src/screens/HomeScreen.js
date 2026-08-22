@@ -16,11 +16,14 @@ export default function HomeScreen({
   onModeChange,
   protocolLabel,
   quality,
+  entryServer,
   onConnectClick,
   onGoServers,
+  onOpenMultiHop,
   onToggleKill,
   onToggleAuto,
 }) {
+  const isMultiHop = mode === 'privacy' && entryServer;
   const connectBtnBg = connecting ? '#4B5563' : connected ? colors.blue : colors.orange;
   const connectLabel = connecting ? 'Connecting…' : connected ? 'PROTECTED' : 'CONNECT';
   const statusLine = connecting
@@ -51,16 +54,29 @@ export default function HomeScreen({
         </View>
       </View>
 
-      <Pressable onPress={onGoServers} style={styles.serverRow}>
-        <FontAwesome6 name="globe" iconStyle="solid" size={19} color={colors.orange} style={styles.serverIcon} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.serverCity}>
-            {server.city}, {server.country}
-          </Text>
-          <Text style={styles.serverHint}>Tap to change server</Text>
-        </View>
-        <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.35)" />
-      </Pressable>
+      {isMultiHop ? (
+        <Pressable onPress={onOpenMultiHop} style={styles.serverRow}>
+          <FontAwesome6 name="route" iconStyle="solid" size={19} color={colors.orange} style={styles.serverIcon} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.serverCity}>
+              {entryServer.city} → {server.city}
+            </Text>
+            <Text style={styles.serverHint}>Multi-hop route · Tap to configure</Text>
+          </View>
+          <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.35)" />
+        </Pressable>
+      ) : (
+        <Pressable onPress={onGoServers} style={styles.serverRow}>
+          <FontAwesome6 name="globe" iconStyle="solid" size={19} color={colors.orange} style={styles.serverIcon} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.serverCity}>
+              {server.city}, {server.country}
+            </Text>
+            <Text style={styles.serverHint}>Tap to change server</Text>
+          </View>
+          <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.35)" />
+        </Pressable>
+      )}
 
       {showStats && <QualityScore score={quality.score} label={quality.label} color={quality.color} />}
 
@@ -72,7 +88,7 @@ export default function HomeScreen({
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>PING</Text>
-            <Text style={styles.statValue}>{server.ping} ms</Text>
+            <Text style={styles.statValue}>{isMultiHop ? entryServer.ping + server.ping : server.ping} ms</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>PROTOCOL</Text>

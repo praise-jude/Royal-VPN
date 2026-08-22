@@ -30,6 +30,18 @@ export function computeConnectionScore({ ping, packetLoss, jitter, load, latency
   return { score, label, color };
 }
 
+const MULTI_HOP_OVERHEAD_MS = 15;
+
+export function computeMultiHopQuality(entry, exit) {
+  return computeConnectionScore({
+    ping: entry.ping + exit.ping,
+    packetLoss: entry.packetLoss + exit.packetLoss,
+    jitter: Math.max(entry.jitter, exit.jitter),
+    load: Math.round((entry.load + exit.load) / 2),
+    latencyPenalty: MULTI_HOP_OVERHEAD_MS,
+  });
+}
+
 export function rankServers(servers, latencyPenalty = 0) {
   return servers
     .map((sv) => ({ ...sv, quality: computeConnectionScore({ ...sv, latencyPenalty }) }))

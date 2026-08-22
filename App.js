@@ -19,6 +19,7 @@ import DevicesScreen from './src/screens/DevicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import SplitTunnelScreen from './src/screens/SplitTunnelScreen';
 import ThreatBlockerScreen from './src/screens/ThreatBlockerScreen';
+import MultiHopScreen from './src/screens/MultiHopScreen';
 import {
   servers as initialServers,
   devices as initialDevices,
@@ -27,7 +28,7 @@ import {
   threatDomainPool,
 } from './src/data';
 import { colors } from './src/theme';
-import { formatDuration, computeConnectionScore, rankServers } from './src/utils';
+import { formatDuration, computeConnectionScore, computeMultiHopQuality, rankServers } from './src/utils';
 
 const THREAT_CATEGORY_WEIGHTS = [
   ['ads', 5],
@@ -54,6 +55,7 @@ function AppContent() {
   const [connecting, setConnecting] = useState(false);
   const [seconds, setSeconds] = useState(2538);
   const [serverId, setServerId] = useState('lagos');
+  const [entryServerId, setEntryServerId] = useState('frankfurt');
   const [killSwitch, setKillSwitch] = useState(true);
   const [autoConnect, setAutoConnect] = useState(true);
   const [twoFA, setTwoFA] = useState(false);
@@ -110,6 +112,18 @@ function AppContent() {
     [serverId]
   );
 
+  const entryServer = useMemo(
+    () => initialServers.find((s) => s.id === entryServerId) || initialServers[1],
+    [entryServerId]
+  );
+
+  useEffect(() => {
+    if (entryServerId === serverId) {
+      const fallback = initialServers.find((s) => s.id !== serverId);
+      if (fallback) setEntryServerId(fallback.id);
+    }
+  }, [entryServerId, serverId]);
+
   const devices = useMemo(
     () => initialDevices.filter((d) => !signedOutIds[d.id]),
     [signedOutIds]
@@ -117,17 +131,16 @@ function AppContent() {
 
   const activeMode = connectionModes.find((m) => m.key === mode) || connectionModes[1];
 
-  const quality = useMemo(
-    () =>
-      computeConnectionScore({
-        ping: server.ping,
-        packetLoss: server.packetLoss,
-        jitter: server.jitter,
-        load: server.load,
-        latencyPenalty: activeMode.latencyPenalty,
-      }),
-    [server, activeMode]
-  );
+  const quality = useMemo(() => {
+    if (mode === 'privacy') return computeMultiHopQuality(entryServer, server);
+    return computeConnectionScore({
+      ping: server.ping,
+      packetLoss: server.packetLoss,
+      jitter: server.jitter,
+      load: server.load,
+      latencyPenalty: activeMode.latencyPenalty,
+    });
+  }, [server, entryServer, mode, activeMode]);
 
   const rankedServers = useMemo(
     () => rankServers(initialServers, activeMode.latencyPenalty),
@@ -159,6 +172,14 @@ function AppContent() {
               onToggle={() => setThreatBlockerOn((v) => !v)}
               onBack={() => setSubScreen(null)}
             />
+          ) : subScreen === 'multi-hop' ? (
+            <MultiHopScreen
+              entryId={entryServerId}
+              exitId={serverId}
+              onSelectEntry={setEntryServerId}
+              onSelectExit={setServerId}
+              onBack={() => setSubScreen(null)}
+            />
           ) : (
             <>
               {tab === 'home' && (
@@ -174,8 +195,10 @@ function AppContent() {
                   onModeChange={setMode}
                   protocolLabel={activeMode.protocolLabel}
                   quality={quality}
+                  entryServer={mode === 'privacy' ? entryServer : null}
                   onConnectClick={handleConnectPress}
                   onGoServers={() => setTab('servers')}
+                  onOpenMultiHop={() => setSubScreen('multi-hop')}
                   onToggleKill={() => setKillSwitch((v) => !v)}
                   onToggleAuto={() => setAutoConnect((v) => !v)}
                 />
