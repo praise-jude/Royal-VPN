@@ -4,6 +4,7 @@ import BackHeader from '../components/BackHeader';
 import Toggle from '../components/Toggle';
 import { threatCategories } from '../data';
 import { colors, font } from '../theme';
+import { formatRelativeTime } from '../utils';
 
 export default function ThreatBlockerScreen({ on, counts, total, recentBlocks, onToggle, onBack }) {
   return (
@@ -48,7 +49,7 @@ export default function ThreatBlockerScreen({ on, counts, total, recentBlocks, o
                   <Text style={styles.domain} numberOfLines={1}>
                     {b.domain}
                   </Text>
-                  <Text style={styles.time}>{b.time}</Text>
+                  <Text style={styles.time}>{formatRelativeTime(b.time)}</Text>
                 </View>
               );
             })

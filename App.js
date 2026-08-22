@@ -26,12 +26,17 @@ import MultiHopScreen from './src/screens/MultiHopScreen';
 import AppLockScreen from './src/screens/AppLockScreen';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import NetworkHistoryScreen from './src/screens/NetworkHistoryScreen';
+import TrustedNetworksScreen from './src/screens/TrustedNetworksScreen';
+import PlansScreen from './src/screens/PlansScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 import {
   servers as initialServers,
   devices as initialDevices,
   connectionModes,
   initialThreatCounts,
   threatDomainPool,
+  initialTrustedNetworks,
+  subscriptionPlans,
 } from './src/data';
 import { colors } from './src/theme';
 import { formatDuration, computeConnectionScore, computeMultiHopQuality, rankServers } from './src/utils';
@@ -55,6 +60,28 @@ function pickWeightedCategory() {
 
 let blockIdCounter = 0;
 let eventIdCounter = 0;
+let trustedNetworkIdCounter = 100;
+
+const STATIC_NOTIFICATIONS = [
+  {
+    id: 'static-welcome',
+    icon: 'crown',
+    color: colors.orange,
+    title: 'Welcome to Royal-VPN Pro',
+    subtitle: 'All server locations and unlimited data are unlocked.',
+    time: Date.now() - 1000 * 60 * 60 * 20,
+    read: true,
+  },
+  {
+    id: 'static-multihop',
+    icon: 'route',
+    color: colors.blue,
+    title: 'New: Multi-Hop routing',
+    subtitle: 'Switch to Max Privacy mode to route through two servers.',
+    time: Date.now() - 1000 * 60 * 60 * 5,
+    read: true,
+  },
+];
 
 const APP_LOCK_STORAGE_KEY = 'royal-vpn:app-lock-enabled';
 
@@ -66,6 +93,11 @@ const EVENT_META = {
   'wifi-detected': { icon: 'wifi', color: colors.orange },
   'network-change': { icon: 'signal', color: colors.textFaint6 },
   'speed-test': { icon: 'gauge-high', color: colors.orange },
+};
+
+const NETWORK_LABELS = {
+  WIFI: 'This Wi-Fi Network',
+  CELLULAR: 'Mobile Data',
 };
 
 function AppContent() {
@@ -95,6 +127,9 @@ function AppContent() {
   const [qualityHistory, setQualityHistory] = useState([]);
   const [autoReconnecting, setAutoReconnecting] = useState(false);
   const [protectBanner, setProtectBanner] = useState('');
+  const [trustedNetworks, setTrustedNetworks] = useState(initialTrustedNetworks);
+  const [currentPlanId, setCurrentPlanId] = useState('pro');
+  const [readNotificationIds, setReadNotificationIds] = useState({});
   const networkState = Network.useNetworkState();
   const prevNetworkTypeRef = useRef(null);
   const qualityRef = useRef(null);
@@ -167,7 +202,7 @@ function AppContent() {
       const domain = pool[Math.floor(Math.random() * pool.length)];
       blockIdCounter += 1;
       setThreatCounts((c) => ({ ...c, [category]: c[category] + 1 }));
-      setRecentBlocks((list) => [{ id: blockIdCounter, domain, category, time: 'just now' }, ...list].slice(0, 20));
+      setRecentBlocks((list) => [{ id: blockIdCounter, domain, category, time: Date.now() }, ...list].slice(0, 20));
     }, 4000);
     return () => clearInterval(id);
   }, [connected, threatBlockerOn]);
@@ -242,6 +277,58 @@ function AppContent() {
     [activeMode]
   );
   const bestServer = rankedServers[0];
+
+  const notifications = useMemo(() => {
+    const fromEvents = networkEvents.map((e) => ({
+      id: `event-${e.id}`,
+      icon: e.icon,
+      color: e.color,
+      title: e.label,
+      subtitle: null,
+      time: e.time,
+    }));
+    const fromBlocks = recentBlocks.slice(0, 10).map((b) => ({
+      id: `block-${b.id}`,
+      icon: 'bug-slash',
+      color: colors.red,
+      title: `Blocked ${b.domain}`,
+      subtitle: `${b.category.charAt(0).toUpperCase()}${b.category.slice(1)} threat`,
+      time: b.time,
+    }));
+    const merged = [...fromEvents, ...fromBlocks, ...STATIC_NOTIFICATIONS].sort((a, b) => b.time - a.time);
+    return merged.slice(0, 40).map((n) => ({ ...n, read: n.read || !!readNotificationIds[n.id] }));
+  }, [networkEvents, recentBlocks, readNotificationIds]);
+
+  const unreadNotifCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+
+  const subscriptionPlanLabel = useMemo(() => {
+    const plan = subscriptionPlans.find((p) => p.id === currentPlanId);
+    return plan ? `${plan.name.toUpperCase()} PLAN` : 'PRO PLAN';
+  }, [currentPlanId]);
+
+  const handleAddTrustedNetwork = useCallback(() => {
+    trustedNetworkIdCounter += 1;
+    const label = NETWORK_LABELS[networkState?.type] || 'Current Network';
+    setTrustedNetworks((list) => [...list, { id: trustedNetworkIdCounter, name: label }]);
+  }, [networkState?.type]);
+
+  const handleRemoveTrustedNetwork = useCallback((id) => {
+    setTrustedNetworks((list) => list.filter((n) => n.id !== id));
+  }, []);
+
+  const handleMarkNotifRead = useCallback((id) => {
+    setReadNotificationIds((r) => ({ ...r, [id]: true }));
+  }, []);
+
+  const handleMarkAllNotifRead = useCallback(() => {
+    setReadNotificationIds(() => {
+      const all = {};
+      notifications.forEach((n) => {
+        all[n.id] = true;
+      });
+      return all;
+    });
+  }, [notifications]);
 
   useEffect(() => {
     qualityRef.current = quality;
@@ -368,6 +455,29 @@ function AppContent() {
               events={networkEvents}
               onBack={() => setSubScreen(null)}
             />
+          ) : subScreen === 'trusted-networks' ? (
+            <TrustedNetworksScreen
+              networks={trustedNetworks}
+              onAdd={handleAddTrustedNetwork}
+              onRemove={handleRemoveTrustedNetwork}
+              onBack={() => setSubScreen(null)}
+            />
+          ) : subScreen === 'plans' ? (
+            <PlansScreen
+              currentPlanId={currentPlanId}
+              onSelectPlan={(id) => {
+                setCurrentPlanId(id);
+                setSubScreen(null);
+              }}
+              onBack={() => setSubScreen(null)}
+            />
+          ) : subScreen === 'notifications' ? (
+            <NotificationsScreen
+              notifications={notifications}
+              onMarkRead={handleMarkNotifRead}
+              onMarkAllRead={handleMarkAllNotifRead}
+              onBack={() => setSubScreen(null)}
+            />
           ) : (
             <>
               {tab === 'home' && (
@@ -417,12 +527,14 @@ function AppContent() {
                   threatsBlockedToday={threatsBlockedToday}
                   appLockEnabled={appLockEnabled}
                   appLockSupported={appLockSupported}
+                  trustedNetworksCount={trustedNetworks.length}
                   onToggleKill={() => setKillSwitch((v) => !v)}
                   onToggleAuto={() => setAutoConnect((v) => !v)}
                   onToggle2FA={() => setTwoFA((v) => !v)}
                   onToggleAppLock={handleToggleAppLock}
                   onOpenSplitTunnel={() => setSubScreen('split-tunnel')}
                   onOpenThreatBlocker={() => setSubScreen('threat-blocker')}
+                  onOpenTrustedNetworks={() => setSubScreen('trusted-networks')}
                 />
               )}
               {tab === 'devices' && (
@@ -431,7 +543,14 @@ function AppContent() {
                   onSignOut={(id) => setSignedOutIds((s) => ({ ...s, [id]: true }))}
                 />
               )}
-              {tab === 'settings' && <SettingsScreen planLabel="PRO PLAN" />}
+              {tab === 'settings' && (
+                <SettingsScreen
+                  planLabel={subscriptionPlanLabel}
+                  unreadNotifCount={unreadNotifCount}
+                  onOpenPlans={() => setSubScreen('plans')}
+                  onOpenNotifications={() => setSubScreen('notifications')}
+                />
+              )}
             </>
           )}
         </ScrollView>

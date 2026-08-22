@@ -4,14 +4,13 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import RmButton from '../components/RmButton';
 import { colors, font } from '../theme';
 
-const MENU_ITEMS = [
-  { icon: 'bell', label: 'Notifications' },
-  { icon: 'globe', label: 'Language', value: 'English' },
-  { icon: 'headset', label: 'Royal Support' },
-  { icon: 'lock', label: 'Privacy Center' },
-];
-
-export default function SettingsScreen({ planLabel }) {
+export default function SettingsScreen({ planLabel, unreadNotifCount, onOpenPlans, onOpenNotifications }) {
+  const menuItems = [
+    { icon: 'bell', label: 'Notifications', onPress: onOpenNotifications, badge: unreadNotifCount },
+    { icon: 'globe', label: 'Language', value: 'English' },
+    { icon: 'headset', label: 'Royal Support' },
+    { icon: 'lock', label: 'Privacy Center' },
+  ];
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Settings</Text>
@@ -38,23 +37,32 @@ export default function SettingsScreen({ planLabel }) {
           <Text style={styles.planLabel}>{planLabel}</Text>
         </View>
         <Text style={styles.planMeta}>Renews Sep 18, 2026 · All locations · 5 devices</Text>
-        <RmButton variant="primary" size="sm" shape="pill">
+        <RmButton variant="primary" size="sm" shape="pill" onPress={onOpenPlans}>
           Manage Subscription
         </RmButton>
       </LinearGradient>
 
       <View style={styles.menuCard}>
-        {MENU_ITEMS.map((item, i) => (
-          <View
-            key={item.label}
-            style={[styles.menuRow, i < MENU_ITEMS.length - 1 && styles.menuRowBorder]}
-          >
-            <FontAwesome6 name={item.icon} iconStyle="solid" size={16} color={colors.orange} style={styles.menuIcon} />
-            <Text style={styles.menuLabel}>{item.label}</Text>
-            {item.value && <Text style={styles.menuValue}>{item.value}</Text>}
-            <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.3)" />
-          </View>
-        ))}
+        {menuItems.map((item, i) => {
+          const Row = item.onPress ? Pressable : View;
+          return (
+            <Row
+              key={item.label}
+              onPress={item.onPress}
+              style={[styles.menuRow, i < menuItems.length - 1 && styles.menuRowBorder]}
+            >
+              <FontAwesome6 name={item.icon} iconStyle="solid" size={16} color={colors.orange} style={styles.menuIcon} />
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              {!!item.badge && (
+                <View style={styles.menuBadge}>
+                  <Text style={styles.menuBadgeText}>{item.badge}</Text>
+                </View>
+              )}
+              {item.value && <Text style={styles.menuValue}>{item.value}</Text>}
+              <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.3)" />
+            </Row>
+          );
+        })}
       </View>
 
       <RmButton variant="secondary" size="md" shape="lg" style={{ width: '100%' }}>
@@ -99,5 +107,16 @@ const styles = StyleSheet.create({
   menuIcon: { width: 20, textAlign: 'center' },
   menuLabel: { flex: 1, fontFamily: font.medium, fontSize: 14, color: '#fff' },
   menuValue: { fontFamily: font.regular, fontSize: 13, color: 'rgba(255,255,255,0.45)', marginRight: 4 },
+  menuBadge: {
+    backgroundColor: colors.orange,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    marginRight: 8,
+  },
+  menuBadgeText: { fontFamily: font.bold, fontSize: 10, color: '#000' },
   version: { textAlign: 'center', fontFamily: font.regular, fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 16 },
 });

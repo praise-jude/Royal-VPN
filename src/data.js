@@ -65,6 +65,50 @@ export const threatDomainPool = {
   phishing: ['secure-login-verify.com', 'account-update-alert.net', 'signin-support.help'],
 };
 
+export const initialTrustedNetworks = [
+  { id: 1, name: 'Home Wi-Fi' },
+  { id: 2, name: 'Office Wi-Fi' },
+];
+
+export const subscriptionPlans = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: '$0',
+    period: '',
+    features: ['1 device', '3 server locations', '10 GB / month', 'Standard support'],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: '$9.99',
+    period: '/month',
+    features: [
+      '5 devices',
+      'All server locations',
+      'Unlimited data',
+      'Threat Blocker',
+      'Multi-Hop routing',
+      'Priority support',
+    ],
+  },
+  {
+    id: 'family',
+    name: 'Family',
+    price: '$16.99',
+    period: '/month',
+    features: [
+      '10 devices',
+      'All server locations',
+      'Unlimited data',
+      'Threat Blocker',
+      'Multi-Hop routing',
+      'Family sharing (up to 6 accounts)',
+      'Priority support',
+    ],
+  },
+];
+
 export const devices = [
   { id: 1, name: 'iPhone 15 Pro', platform: 'iOS', lastActive: 'Active now', current: true },
   { id: 2, name: 'MacBook Pro', platform: 'macOS', lastActive: 'Active 2h ago', current: false },
