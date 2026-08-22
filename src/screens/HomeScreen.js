@@ -1,5 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import ModeSwitcher from '../components/ModeSwitcher';
+import QualityScore from '../components/QualityScore';
 import { colors, font } from '../theme';
 
 export default function HomeScreen({
@@ -10,6 +12,10 @@ export default function HomeScreen({
   showStats,
   killSwitch,
   autoConnect,
+  mode,
+  onModeChange,
+  protocolLabel,
+  quality,
   onConnectClick,
   onGoServers,
   onToggleKill,
@@ -56,6 +62,8 @@ export default function HomeScreen({
         <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.35)" />
       </Pressable>
 
+      {showStats && <QualityScore score={quality.score} label={quality.label} color={quality.color} />}
+
       {showStats && (
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
@@ -68,10 +76,12 @@ export default function HomeScreen({
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>PROTOCOL</Text>
-            <Text style={styles.statValue}>WireGuard</Text>
+            <Text style={styles.statValueSmall}>{protocolLabel}</Text>
           </View>
         </View>
       )}
+
+      <ModeSwitcher mode={mode} onChange={onModeChange} />
 
       <View style={styles.actionsRow}>
         <Pressable onPress={onToggleKill} style={styles.actionBtn}>
@@ -132,6 +142,7 @@ const styles = StyleSheet.create({
   },
   statLabel: { fontFamily: font.regular, fontSize: 10, color: colors.textFaint5, letterSpacing: 0.5, marginBottom: 4 },
   statValue: { fontFamily: font.bold, fontSize: 14, color: '#fff' },
+  statValueSmall: { fontFamily: font.bold, fontSize: 10.5, color: '#fff', textAlign: 'center' },
   actionsRow: { flexDirection: 'row', gap: 10 },
   actionBtn: {
     flex: 1,

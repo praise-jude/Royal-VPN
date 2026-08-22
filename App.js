@@ -17,16 +17,10 @@ import ServersScreen from './src/screens/ServersScreen';
 import SecurityScreen from './src/screens/SecurityScreen';
 import DevicesScreen from './src/screens/DevicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import { servers as initialServers, devices as initialDevices } from './src/data';
+import SplitTunnelScreen from './src/screens/SplitTunnelScreen';
+import { servers as initialServers, devices as initialDevices, connectionModes } from './src/data';
 import { colors } from './src/theme';
-
-function formatDuration(sec) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  const p = (n) => String(n).padStart(2, '0');
-  return `${p(h)}:${p(m)}:${p(s)}`;
-}
+import { formatDuration, computeConnectionScore } from './src/utils';
 
 function AppContent() {
   const [tab, setTab] = useState('home');
@@ -39,6 +33,9 @@ function AppContent() {
   const [twoFA, setTwoFA] = useState(false);
   const [favorites, setFavorites] = useState({ london: true });
   const [signedOutIds, setSignedOutIds] = useState({});
+  const [mode, setMode] = useState('balanced');
+  const [vpnApps, setVpnApps] = useState({});
+  const [subScreen, setSubScreen] = useState(null);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -71,6 +68,20 @@ function AppContent() {
     [signedOutIds]
   );
 
+  const activeMode = connectionModes.find((m) => m.key === mode) || connectionModes[1];
+
+  const quality = useMemo(
+    () =>
+      computeConnectionScore({
+        ping: server.ping,
+        packetLoss: server.packetLoss,
+        jitter: server.jitter,
+        load: server.load,
+        latencyPenalty: activeMode.latencyPenalty,
+      }),
+    [server, activeMode]
+  );
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -80,50 +91,66 @@ function AppContent() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {tab === 'home' && (
-            <HomeScreen
-              connected={connected}
-              connecting={connecting}
-              server={server}
-              durationStr={formatDuration(seconds)}
-              showStats={connected}
-              killSwitch={killSwitch}
-              autoConnect={autoConnect}
-              onConnectClick={handleConnectPress}
-              onGoServers={() => setTab('servers')}
-              onToggleKill={() => setKillSwitch((v) => !v)}
-              onToggleAuto={() => setAutoConnect((v) => !v)}
+          {subScreen === 'split-tunnel' ? (
+            <SplitTunnelScreen
+              vpnApps={vpnApps}
+              onToggleApp={(id) => setVpnApps((v) => ({ ...v, [id]: v[id] === false ? true : false }))}
+              onBack={() => setSubScreen(null)}
             />
+          ) : (
+            <>
+              {tab === 'home' && (
+                <HomeScreen
+                  connected={connected}
+                  connecting={connecting}
+                  server={server}
+                  durationStr={formatDuration(seconds)}
+                  showStats={connected}
+                  killSwitch={killSwitch}
+                  autoConnect={autoConnect}
+                  mode={mode}
+                  onModeChange={setMode}
+                  protocolLabel={activeMode.protocolLabel}
+                  quality={quality}
+                  onConnectClick={handleConnectPress}
+                  onGoServers={() => setTab('servers')}
+                  onToggleKill={() => setKillSwitch((v) => !v)}
+                  onToggleAuto={() => setAutoConnect((v) => !v)}
+                />
+              )}
+              {tab === 'servers' && (
+                <ServersScreen
+                  servers={initialServers}
+                  selectedId={server.id}
+                  favorites={favorites}
+                  onSelect={setServerId}
+                  onToggleFav={(id) => setFavorites((f) => ({ ...f, [id]: !f[id] }))}
+                />
+              )}
+              {tab === 'security' && (
+                <SecurityScreen
+                  connected={connected}
+                  killSwitch={killSwitch}
+                  autoConnect={autoConnect}
+                  twoFA={twoFA}
+                  onToggleKill={() => setKillSwitch((v) => !v)}
+                  onToggleAuto={() => setAutoConnect((v) => !v)}
+                  onToggle2FA={() => setTwoFA((v) => !v)}
+                  onOpenSplitTunnel={() => setSubScreen('split-tunnel')}
+                />
+              )}
+              {tab === 'devices' && (
+                <DevicesScreen
+                  devices={devices}
+                  onSignOut={(id) => setSignedOutIds((s) => ({ ...s, [id]: true }))}
+                />
+              )}
+              {tab === 'settings' && <SettingsScreen planLabel="PRO PLAN" />}
+            </>
           )}
-          {tab === 'servers' && (
-            <ServersScreen
-              servers={initialServers}
-              selectedId={server.id}
-              favorites={favorites}
-              onSelect={setServerId}
-              onToggleFav={(id) => setFavorites((f) => ({ ...f, [id]: !f[id] }))}
-            />
-          )}
-          {tab === 'security' && (
-            <SecurityScreen
-              killSwitch={killSwitch}
-              autoConnect={autoConnect}
-              twoFA={twoFA}
-              onToggleKill={() => setKillSwitch((v) => !v)}
-              onToggleAuto={() => setAutoConnect((v) => !v)}
-              onToggle2FA={() => setTwoFA((v) => !v)}
-            />
-          )}
-          {tab === 'devices' && (
-            <DevicesScreen
-              devices={devices}
-              onSignOut={(id) => setSignedOutIds((s) => ({ ...s, [id]: true }))}
-            />
-          )}
-          {tab === 'settings' && <SettingsScreen planLabel="PRO PLAN" />}
         </ScrollView>
       </SafeAreaView>
-      <TabBar activeTab={tab} onChange={setTab} />
+      <TabBar activeTab={tab} onChange={(t) => { setSubScreen(null); setTab(t); }} />
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import Toggle from '../components/Toggle';
+import SecurityCheck from '../components/SecurityCheck';
 import { colors, font } from '../theme';
 
 function Row({ icon, title, subtitle, right }) {
@@ -18,19 +19,32 @@ function Row({ icon, title, subtitle, right }) {
   );
 }
 
-export default function SecurityScreen({ killSwitch, autoConnect, twoFA, onToggleKill, onToggleAuto, onToggle2FA }) {
+export default function SecurityScreen({
+  connected,
+  killSwitch,
+  autoConnect,
+  twoFA,
+  onToggleKill,
+  onToggleAuto,
+  onToggle2FA,
+  onOpenSplitTunnel,
+}) {
+  const checks = [
+    { label: 'IP protected', pass: connected },
+    { label: 'DNS protected', pass: connected },
+    { label: 'IPv6 protected', pass: connected },
+    { label: 'WebRTC protected', pass: connected },
+    { label: 'Kill switch active', pass: killSwitch },
+    { label: 'VPN encryption active', pass: connected },
+    { label: 'Secure DNS active', pass: connected },
+  ];
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Security Center</Text>
       <Text style={styles.subtitle}>Your protection status at a glance</Text>
 
-      <View style={styles.dnsCard}>
-        <FontAwesome6 name="circle-check" iconStyle="solid" size={20} color={colors.green} />
-        <View>
-          <Text style={styles.dnsTitle}>DNS Leak Protection</Text>
-          <Text style={styles.dnsSubtitle}>IPv4 protected · IPv6 protected · No leak detected</Text>
-        </View>
-      </View>
+      <SecurityCheck checks={checks} />
 
       <Row
         icon="power-off"
@@ -51,6 +65,17 @@ export default function SecurityScreen({ killSwitch, autoConnect, twoFA, onToggl
         right={<Toggle value={twoFA} onToggle={onToggle2FA} />}
       />
 
+      <Pressable style={styles.row} onPress={onOpenSplitTunnel}>
+        <View style={styles.rowLeft}>
+          <FontAwesome6 name="shuffle" iconStyle="solid" size={16} color={colors.orange} style={styles.rowIcon} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Smart Split Tunnel</Text>
+            <Text style={styles.rowSubtitle}>Choose which apps use the VPN</Text>
+          </View>
+        </View>
+        <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.3)" />
+      </Pressable>
+
       <Pressable style={[styles.row, { marginBottom: 0 }]}>
         <View style={styles.rowLeft}>
           <FontAwesome6 name="route" iconStyle="solid" size={16} color={colors.orange} style={styles.rowIcon} />
@@ -69,19 +94,6 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 20 },
   title: { fontFamily: font.extrabold, fontSize: 25, color: '#fff', marginBottom: 4 },
   subtitle: { fontFamily: font.regular, fontSize: 13, color: colors.textFaint5, marginBottom: 18 },
-  dnsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: 'rgba(34,197,94,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(34,197,94,0.3)',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 18,
-  },
-  dnsTitle: { fontFamily: font.bold, fontSize: 14, color: '#fff' },
-  dnsSubtitle: { fontFamily: font.regular, fontSize: 12, color: colors.textFaint6, marginTop: 2 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
