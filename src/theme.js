@@ -7,6 +7,7 @@ export const colors = {
   green: '#22C55E',
   yellow: '#EAB308',
   red: '#EF4444',
+  purple: '#A855F7',
   textPrimary: '#FFFFFF',
   textFaint45: 'rgba(255,255,255,0.45)',
   textFaint5: 'rgba(255,255,255,0.5)',

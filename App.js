@@ -18,9 +18,35 @@ import SecurityScreen from './src/screens/SecurityScreen';
 import DevicesScreen from './src/screens/DevicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import SplitTunnelScreen from './src/screens/SplitTunnelScreen';
-import { servers as initialServers, devices as initialDevices, connectionModes } from './src/data';
+import ThreatBlockerScreen from './src/screens/ThreatBlockerScreen';
+import {
+  servers as initialServers,
+  devices as initialDevices,
+  connectionModes,
+  initialThreatCounts,
+  threatDomainPool,
+} from './src/data';
 import { colors } from './src/theme';
 import { formatDuration, computeConnectionScore, rankServers } from './src/utils';
+
+const THREAT_CATEGORY_WEIGHTS = [
+  ['ads', 5],
+  ['trackers', 3],
+  ['malware', 1],
+  ['phishing', 1],
+];
+
+function pickWeightedCategory() {
+  const total = THREAT_CATEGORY_WEIGHTS.reduce((sum, [, w]) => sum + w, 0);
+  let r = Math.random() * total;
+  for (const [key, w] of THREAT_CATEGORY_WEIGHTS) {
+    if (r < w) return key;
+    r -= w;
+  }
+  return THREAT_CATEGORY_WEIGHTS[0][0];
+}
+
+let blockIdCounter = 0;
 
 function AppContent() {
   const [tab, setTab] = useState('home');
@@ -36,6 +62,9 @@ function AppContent() {
   const [mode, setMode] = useState('balanced');
   const [vpnApps, setVpnApps] = useState({});
   const [subScreen, setSubScreen] = useState(null);
+  const [threatBlockerOn, setThreatBlockerOn] = useState(true);
+  const [threatCounts, setThreatCounts] = useState(initialThreatCounts);
+  const [recentBlocks, setRecentBlocks] = useState([]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -43,6 +72,24 @@ function AppContent() {
     }, 1000);
     return () => clearInterval(id);
   }, [connected]);
+
+  useEffect(() => {
+    if (!connected || !threatBlockerOn) return;
+    const id = setInterval(() => {
+      const category = pickWeightedCategory();
+      const pool = threatDomainPool[category];
+      const domain = pool[Math.floor(Math.random() * pool.length)];
+      blockIdCounter += 1;
+      setThreatCounts((c) => ({ ...c, [category]: c[category] + 1 }));
+      setRecentBlocks((list) => [{ id: blockIdCounter, domain, category, time: 'just now' }, ...list].slice(0, 20));
+    }, 4000);
+    return () => clearInterval(id);
+  }, [connected, threatBlockerOn]);
+
+  const threatsBlockedToday = useMemo(
+    () => Object.values(threatCounts).reduce((sum, n) => sum + n, 0),
+    [threatCounts]
+  );
 
   const handleConnectPress = useCallback(() => {
     if (connecting) return;
@@ -103,6 +150,15 @@ function AppContent() {
               onToggleApp={(id) => setVpnApps((v) => ({ ...v, [id]: v[id] === false ? true : false }))}
               onBack={() => setSubScreen(null)}
             />
+          ) : subScreen === 'threat-blocker' ? (
+            <ThreatBlockerScreen
+              on={threatBlockerOn}
+              counts={threatCounts}
+              total={threatsBlockedToday}
+              recentBlocks={recentBlocks}
+              onToggle={() => setThreatBlockerOn((v) => !v)}
+              onBack={() => setSubScreen(null)}
+            />
           ) : (
             <>
               {tab === 'home' && (
@@ -141,10 +197,13 @@ function AppContent() {
                   killSwitch={killSwitch}
                   autoConnect={autoConnect}
                   twoFA={twoFA}
+                  threatBlockerOn={threatBlockerOn}
+                  threatsBlockedToday={threatsBlockedToday}
                   onToggleKill={() => setKillSwitch((v) => !v)}
                   onToggleAuto={() => setAutoConnect((v) => !v)}
                   onToggle2FA={() => setTwoFA((v) => !v)}
                   onOpenSplitTunnel={() => setSubScreen('split-tunnel')}
+                  onOpenThreatBlocker={() => setSubScreen('threat-blocker')}
                 />
               )}
               {tab === 'devices' && (

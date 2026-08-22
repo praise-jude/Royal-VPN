@@ -24,10 +24,13 @@ export default function SecurityScreen({
   killSwitch,
   autoConnect,
   twoFA,
+  threatBlockerOn,
+  threatsBlockedToday,
   onToggleKill,
   onToggleAuto,
   onToggle2FA,
   onOpenSplitTunnel,
+  onOpenThreatBlocker,
 }) {
   const checks = [
     { label: 'IP protected', pass: connected },
@@ -45,6 +48,20 @@ export default function SecurityScreen({
       <Text style={styles.subtitle}>Your protection status at a glance</Text>
 
       <SecurityCheck checks={checks} />
+
+      <Pressable style={styles.row} onPress={onOpenThreatBlocker}>
+        <View style={styles.rowLeft}>
+          <FontAwesome6 name="bug-slash" iconStyle="solid" size={16} color={colors.orange} style={styles.rowIcon} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Threat Blocker</Text>
+            <Text style={styles.rowSubtitle}>
+              {threatBlockerOn ? `${threatsBlockedToday.toLocaleString()} blocked today` : 'Off'}
+            </Text>
+          </View>
+        </View>
+        <View style={[styles.statusDot, { backgroundColor: threatBlockerOn ? colors.green : colors.textFaint45 }]} />
+        <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.3)" />
+      </Pressable>
 
       <Row
         icon="power-off"
@@ -108,4 +125,5 @@ const styles = StyleSheet.create({
   rowIcon: { width: 20, textAlign: 'center' },
   rowTitle: { fontFamily: font.semibold, fontSize: 14, color: '#fff' },
   rowSubtitle: { fontFamily: font.regular, fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
+  statusDot: { width: 8, height: 8, borderRadius: 9999, marginRight: 10 },
 });

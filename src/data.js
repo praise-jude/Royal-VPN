@@ -49,6 +49,22 @@ export const splitTunnelApps = [
   { id: 'banking', name: 'Banking App', icon: 'building-columns' },
 ];
 
+export const threatCategories = [
+  { key: 'ads', label: 'Ads', icon: 'rectangle-ad', color: '#FF9300' },
+  { key: 'trackers', label: 'Trackers', icon: 'satellite-dish', color: '#000F9A' },
+  { key: 'malware', label: 'Malware', icon: 'bug', color: '#EF4444' },
+  { key: 'phishing', label: 'Phishing', icon: 'user-secret', color: '#A855F7' },
+];
+
+export const initialThreatCounts = { ads: 812, trackers: 341, malware: 12, phishing: 6 };
+
+export const threatDomainPool = {
+  ads: ['ads.doubleclick.net', 'pagead2.googlesyndication.com', 'adservice.google.com', 'adnxs.com'],
+  trackers: ['scorecardresearch.com', 'segment.io', 'mixpanel.com', 'hotjar.com', 'branch.io'],
+  malware: ['xkcdupdate.info', 'freegift-claim.ru', 'setup-installer.top'],
+  phishing: ['secure-login-verify.com', 'account-update-alert.net', 'signin-support.help'],
+};
+
 export const devices = [
   { id: 1, name: 'iPhone 15 Pro', platform: 'iOS', lastActive: 'Active now', current: true },
   { id: 2, name: 'MacBook Pro', platform: 'macOS', lastActive: 'Active 2h ago', current: false },
