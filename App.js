@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, ScrollView, StyleSheet, AppState } from 'react-native';
+import { View, ScrollView, StyleSheet, AppState, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Network from 'expo-network';
@@ -560,6 +561,32 @@ function AppContent() {
   );
 }
 
+const WIDE_BREAKPOINT = 560;
+const FRAME_MAX_WIDTH = 430;
+const FRAME_MAX_HEIGHT = 900;
+
+function ResponsiveFrame({ children }) {
+  const { width, height } = useWindowDimensions();
+  const isWide = width > WIDE_BREAKPOINT;
+
+  if (!isWide) {
+    return <View style={styles.fullBleed}>{children}</View>;
+  }
+
+  return (
+    <LinearGradient colors={['#05070d', '#0a0d1c']} style={styles.desktopBackdrop}>
+      <View
+        style={[
+          styles.phoneFrame,
+          { height: Math.min(height - 64, FRAME_MAX_HEIGHT) },
+        ]}
+      >
+        {children}
+      </View>
+    </LinearGradient>
+  );
+}
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -573,7 +600,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <ResponsiveFrame>
+        <AppContent />
+      </ResponsiveFrame>
     </SafeAreaProvider>
   );
 }
@@ -583,4 +612,19 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { paddingTop: 8, paddingBottom: 100 },
+  fullBleed: { flex: 1 },
+  desktopBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  phoneFrame: {
+    width: '100%',
+    maxWidth: FRAME_MAX_WIDTH,
+    borderRadius: 40,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 30 },
+    shadowOpacity: 0.6,
+    shadowRadius: 60,
+    elevation: 30,
+  },
 });
