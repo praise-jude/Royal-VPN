@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, ScrollView, StyleSheet, AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import * as LocalAuthentication from 'expo-local-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   useFonts,
   Poppins_400Regular,
@@ -20,6 +22,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import SplitTunnelScreen from './src/screens/SplitTunnelScreen';
 import ThreatBlockerScreen from './src/screens/ThreatBlockerScreen';
 import MultiHopScreen from './src/screens/MultiHopScreen';
+import AppLockScreen from './src/screens/AppLockScreen';
 import {
   servers as initialServers,
   devices as initialDevices,
@@ -49,6 +52,8 @@ function pickWeightedCategory() {
 
 let blockIdCounter = 0;
 
+const APP_LOCK_STORAGE_KEY = 'royal-vpn:app-lock-enabled';
+
 function AppContent() {
   const [tab, setTab] = useState('home');
   const [connected, setConnected] = useState(true);
@@ -67,6 +72,53 @@ function AppContent() {
   const [threatBlockerOn, setThreatBlockerOn] = useState(true);
   const [threatCounts, setThreatCounts] = useState(initialThreatCounts);
   const [recentBlocks, setRecentBlocks] = useState([]);
+  const [appLockEnabled, setAppLockEnabled] = useState(false);
+  const [appLockSupported, setAppLockSupported] = useState(false);
+  const [unlocked, setUnlocked] = useState(true);
+  const [lockError, setLockError] = useState('');
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    (async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = hasHardware && (await LocalAuthentication.isEnrolledAsync());
+      setAppLockSupported(isEnrolled);
+
+      const stored = await AsyncStorage.getItem(APP_LOCK_STORAGE_KEY);
+      const enabled = stored === 'true' && isEnrolled;
+      setAppLockEnabled(enabled);
+      if (enabled) setUnlocked(false);
+    })();
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appState.current.match(/active/) && next.match(/inactive|background/) && appLockEnabled) {
+        setUnlocked(false);
+      }
+      appState.current = next;
+    });
+    return () => sub.remove();
+  }, [appLockEnabled]);
+
+  const handleToggleAppLock = useCallback(async () => {
+    const next = !appLockEnabled;
+    setAppLockEnabled(next);
+    await AsyncStorage.setItem(APP_LOCK_STORAGE_KEY, next ? 'true' : 'false');
+  }, [appLockEnabled]);
+
+  const handleUnlock = useCallback(async () => {
+    setLockError('');
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Unlock Royal-VPN',
+      disableDeviceFallback: false,
+    });
+    if (result.success) {
+      setUnlocked(true);
+    } else if (result.error && result.error !== 'user_cancel') {
+      setLockError('Authentication failed. Try again.');
+    }
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -148,6 +200,15 @@ function AppContent() {
   );
   const bestServer = rankedServers[0];
 
+  if (appLockEnabled && appLockSupported && !unlocked) {
+    return (
+      <View style={styles.root}>
+        <StatusBar style="light" />
+        <AppLockScreen onUnlock={handleUnlock} error={lockError} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -222,9 +283,12 @@ function AppContent() {
                   twoFA={twoFA}
                   threatBlockerOn={threatBlockerOn}
                   threatsBlockedToday={threatsBlockedToday}
+                  appLockEnabled={appLockEnabled}
+                  appLockSupported={appLockSupported}
                   onToggleKill={() => setKillSwitch((v) => !v)}
                   onToggleAuto={() => setAutoConnect((v) => !v)}
                   onToggle2FA={() => setTwoFA((v) => !v)}
+                  onToggleAppLock={handleToggleAppLock}
                   onOpenSplitTunnel={() => setSubScreen('split-tunnel')}
                   onOpenThreatBlocker={() => setSubScreen('threat-blocker')}
                 />

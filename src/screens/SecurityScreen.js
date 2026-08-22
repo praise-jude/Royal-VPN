@@ -26,9 +26,12 @@ export default function SecurityScreen({
   twoFA,
   threatBlockerOn,
   threatsBlockedToday,
+  appLockEnabled,
+  appLockSupported,
   onToggleKill,
   onToggleAuto,
   onToggle2FA,
+  onToggleAppLock,
   onOpenSplitTunnel,
   onOpenThreatBlocker,
 }) {
@@ -80,6 +83,12 @@ export default function SecurityScreen({
         title="Two-Factor Authentication"
         subtitle="Extra layer on account login"
         right={<Toggle value={twoFA} onToggle={onToggle2FA} />}
+      />
+      <Row
+        icon="fingerprint"
+        title="App Lock"
+        subtitle={appLockSupported ? 'Require Face ID / fingerprint to open' : 'Not available on this device'}
+        right={appLockSupported ? <Toggle value={appLockEnabled} onToggle={onToggleAppLock} /> : null}
       />
 
       <Pressable style={styles.row} onPress={onOpenSplitTunnel}>
