@@ -21,6 +21,13 @@ app.use('/paystack/webhook', express.raw({ type: 'application/json' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+app.get('/paystack/plans', (_req, res) => {
+  res.json({
+    pro: { name: PLANS.pro.name, amountNaira: PLANS.pro.amountNaira },
+    family: { name: PLANS.family.name, amountNaira: PLANS.family.amountNaira },
+  });
+});
+
 app.post('/paystack/initialize', async (req, res) => {
   if (!PAYSTACK_SECRET_KEY) {
     return res.status(500).json({ error: 'Payment provider is not configured yet.' });

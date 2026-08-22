@@ -3,6 +3,7 @@
     "name": "royal-vpn",
     "slug": "royal-vpn",
     "version": "1.0.0",
+    "scheme": "royalvpn",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -22,7 +23,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

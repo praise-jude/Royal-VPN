@@ -109,14 +109,14 @@ export const subscriptionPlans = [
   {
     id: 'free',
     name: 'Free',
-    price: '$0',
+    price: '₦0',
     period: '',
     features: ['1 device', '3 server locations', '10 GB / month', 'Standard support'],
   },
   {
     id: 'pro',
     name: 'Pro',
-    price: '$9.99',
+    price: null,
     period: '/month',
     features: [
       '5 devices',
@@ -130,7 +130,7 @@ export const subscriptionPlans = [
   {
     id: 'family',
     name: 'Family',
-    price: '$16.99',
+    price: null,
     period: '/month',
     features: [
       '10 devices',
