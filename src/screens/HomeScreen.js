@@ -4,9 +4,17 @@ import ModeSwitcher from '../components/ModeSwitcher';
 import QualityScore from '../components/QualityScore';
 import { colors, font } from '../theme';
 
+const NETWORK_META = {
+  WIFI: { icon: 'wifi', label: 'Wi-Fi' },
+  CELLULAR: { icon: 'signal', label: 'Mobile Data' },
+  NONE: { icon: 'ban', label: 'Offline' },
+  UNKNOWN: { icon: 'circle-question', label: 'Connected' },
+};
+
 export default function HomeScreen({
   connected,
   connecting,
+  autoReconnecting,
   server,
   durationStr,
   showStats,
@@ -17,28 +25,54 @@ export default function HomeScreen({
   protocolLabel,
   quality,
   entryServer,
+  networkType,
+  protectBanner,
   onConnectClick,
   onGoServers,
   onOpenMultiHop,
+  onOpenHistory,
+  onOpenSpeedTest,
   onToggleKill,
   onToggleAuto,
 }) {
   const isMultiHop = mode === 'privacy' && entryServer;
   const connectBtnBg = connecting ? '#4B5563' : connected ? colors.blue : colors.orange;
   const connectLabel = connecting ? 'Connecting…' : connected ? 'PROTECTED' : 'CONNECT';
-  const statusLine = connecting
+  const statusLine = autoReconnecting
+    ? 'Network changed — reconnecting…'
+    : connecting
     ? 'Securing your connection…'
     : connected
     ? 'Your connection is protected'
     : 'You are not protected';
-  const statusDotColor = connected ? colors.green : connecting ? colors.yellow : colors.red;
+  const statusDotColor = autoReconnecting
+    ? colors.yellow
+    : connected
+    ? colors.green
+    : connecting
+    ? colors.yellow
+    : colors.red;
+  const netMeta = NETWORK_META[networkType] || NETWORK_META.UNKNOWN;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <FontAwesome6 name="shield-halved" iconStyle="solid" size={20} color={colors.orange} />
-        <Text style={styles.headerTitle}>ROYAL-VPN</Text>
+        <View style={styles.headerLeft}>
+          <FontAwesome6 name="shield-halved" iconStyle="solid" size={20} color={colors.orange} />
+          <Text style={styles.headerTitle}>ROYAL-VPN</Text>
+        </View>
+        <View style={styles.networkBadge}>
+          <FontAwesome6 name={netMeta.icon} iconStyle="solid" size={11} color={colors.textFaint6} />
+          <Text style={styles.networkBadgeText}>{netMeta.label}</Text>
+        </View>
       </View>
+
+      {protectBanner ? (
+        <View style={styles.protectBanner}>
+          <FontAwesome6 name="shield-halved" iconStyle="solid" size={14} color={colors.orange} />
+          <Text style={styles.protectBannerText}>{protectBanner}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.connectWrap}>
         <Pressable
@@ -78,7 +112,11 @@ export default function HomeScreen({
         </Pressable>
       )}
 
-      {showStats && <QualityScore score={quality.score} label={quality.label} color={quality.color} />}
+      {showStats && (
+        <Pressable onPress={onOpenHistory}>
+          <QualityScore score={quality.score} label={quality.label} color={quality.color} />
+        </Pressable>
+      )}
 
       {showStats && (
         <View style={styles.statsRow}>
@@ -99,6 +137,12 @@ export default function HomeScreen({
 
       <ModeSwitcher mode={mode} onChange={onModeChange} />
 
+      <Pressable onPress={onOpenSpeedTest} style={styles.speedTestBtn}>
+        <FontAwesome6 name="gauge-high" iconStyle="solid" size={14} color={colors.orange} />
+        <Text style={styles.speedTestText}>Run Speed Test</Text>
+        <FontAwesome6 name="chevron-right" iconStyle="solid" size={12} color="rgba(255,255,255,0.3)" />
+      </Pressable>
+
       <View style={styles.actionsRow}>
         <Pressable onPress={onToggleKill} style={styles.actionBtn}>
           <FontAwesome6 name="power-off" iconStyle="solid" size={12} color={colors.orange} />
@@ -115,8 +159,47 @@ export default function HomeScreen({
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 26 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerTitle: { fontFamily: font.extrabold, fontSize: 19, letterSpacing: 0.5, color: '#fff' },
+  networkBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface06,
+    borderRadius: 9999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  networkBadgeText: { fontFamily: font.medium, fontSize: 11, color: colors.textFaint6 },
+  protectBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,147,0,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,147,0,0.3)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  protectBannerText: { flex: 1, fontFamily: font.medium, fontSize: 12, color: '#fff' },
+  speedTestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surface06,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+  },
+  speedTestText: { flex: 1, fontFamily: font.semibold, fontSize: 13, color: '#fff' },
   connectWrap: { alignItems: 'center', marginVertical: 8, marginBottom: 30 },
   connectBtn: {
     width: 196,

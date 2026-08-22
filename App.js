@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Network from 'expo-network';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   useFonts,
@@ -23,6 +24,8 @@ import SplitTunnelScreen from './src/screens/SplitTunnelScreen';
 import ThreatBlockerScreen from './src/screens/ThreatBlockerScreen';
 import MultiHopScreen from './src/screens/MultiHopScreen';
 import AppLockScreen from './src/screens/AppLockScreen';
+import SpeedTestScreen from './src/screens/SpeedTestScreen';
+import NetworkHistoryScreen from './src/screens/NetworkHistoryScreen';
 import {
   servers as initialServers,
   devices as initialDevices,
@@ -51,8 +54,19 @@ function pickWeightedCategory() {
 }
 
 let blockIdCounter = 0;
+let eventIdCounter = 0;
 
 const APP_LOCK_STORAGE_KEY = 'royal-vpn:app-lock-enabled';
+
+const EVENT_META = {
+  connect: { icon: 'power-off', color: colors.green },
+  disconnect: { icon: 'power-off', color: colors.red },
+  reconnect: { icon: 'arrows-rotate', color: colors.yellow },
+  'server-switch': { icon: 'server', color: colors.blue },
+  'wifi-detected': { icon: 'wifi', color: colors.orange },
+  'network-change': { icon: 'signal', color: colors.textFaint6 },
+  'speed-test': { icon: 'gauge-high', color: colors.orange },
+};
 
 function AppContent() {
   const [tab, setTab] = useState('home');
@@ -77,6 +91,24 @@ function AppContent() {
   const [unlocked, setUnlocked] = useState(true);
   const [lockError, setLockError] = useState('');
   const appState = useRef(AppState.currentState);
+  const [networkEvents, setNetworkEvents] = useState([]);
+  const [qualityHistory, setQualityHistory] = useState([]);
+  const [autoReconnecting, setAutoReconnecting] = useState(false);
+  const [protectBanner, setProtectBanner] = useState('');
+  const networkState = Network.useNetworkState();
+  const prevNetworkTypeRef = useRef(null);
+  const qualityRef = useRef(null);
+  const connectedRef = useRef(connected);
+  const autoConnectRef = useRef(autoConnect);
+  const connectingRef = useRef(connecting);
+
+  const logEvent = useCallback((type, label) => {
+    eventIdCounter += 1;
+    const meta = EVENT_META[type] || { icon: 'circle-info', color: colors.textFaint6 };
+    setNetworkEvents((list) =>
+      [{ id: eventIdCounter, type, label, time: Date.now(), icon: meta.icon, color: meta.color }, ...list].slice(0, 40)
+    );
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -150,14 +182,25 @@ function AppContent() {
     if (connected) {
       setConnected(false);
       setSeconds(0);
+      logEvent('disconnect', 'Manually disconnected');
     } else {
       setConnecting(true);
       setTimeout(() => {
         setConnecting(false);
         setConnected(true);
+        logEvent('connect', 'Connected');
       }, 1400);
     }
-  }, [connected, connecting]);
+  }, [connected, connecting, logEvent]);
+
+  const handleSelectServer = useCallback(
+    (id) => {
+      const target = initialServers.find((s) => s.id === id);
+      setServerId(id);
+      if (target) logEvent('server-switch', `Switched exit server to ${target.city}`);
+    },
+    [logEvent]
+  );
 
   const server = useMemo(
     () => initialServers.find((s) => s.id === serverId) || initialServers[0],
@@ -200,6 +243,75 @@ function AppContent() {
   );
   const bestServer = rankedServers[0];
 
+  useEffect(() => {
+    qualityRef.current = quality;
+  }, [quality]);
+  useEffect(() => {
+    connectedRef.current = connected;
+  }, [connected]);
+  useEffect(() => {
+    autoConnectRef.current = autoConnect;
+  }, [autoConnect]);
+  useEffect(() => {
+    connectingRef.current = connecting;
+  }, [connecting]);
+
+  useEffect(() => {
+    const type = networkState?.type;
+    if (!type) return;
+    const prev = prevNetworkTypeRef.current;
+    if (prev !== null && prev !== type) {
+      if (type === 'WIFI') {
+        logEvent('wifi-detected', 'Joined a new Wi-Fi network — not verified as trusted');
+        setProtectBanner('Unverified Wi-Fi detected');
+        if (autoConnectRef.current && !connectedRef.current && !connectingRef.current) {
+          setConnecting(true);
+          setTimeout(() => {
+            setConnecting(false);
+            setConnected(true);
+            logEvent('wifi-detected', 'Auto-Connect engaged on unverified Wi-Fi');
+          }, 1000);
+        }
+        setTimeout(() => setProtectBanner(''), 6000);
+      } else if (type === 'CELLULAR' && prev === 'WIFI') {
+        logEvent('network-change', 'Switched from Wi-Fi to mobile data');
+      }
+    }
+    prevNetworkTypeRef.current = type;
+  }, [networkState?.type, logEvent]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (connectedRef.current && qualityRef.current) {
+        setQualityHistory((h) => [...h, { t: Date.now(), score: qualityRef.current.score }].slice(-40));
+      }
+    }, 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (
+        connectedRef.current &&
+        !connectingRef.current &&
+        !autoReconnecting &&
+        Math.random() < 0.06
+      ) {
+        setAutoReconnecting(true);
+        setTimeout(() => {
+          setAutoReconnecting(false);
+          logEvent(
+            'reconnect',
+            killSwitch
+              ? 'Auto-reconnected after a network blip — Kill Switch blocked traffic during the gap'
+              : 'Auto-reconnected after a brief network interruption'
+          );
+        }, 1700);
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [autoReconnecting, killSwitch, logEvent]);
+
   if (appLockEnabled && appLockSupported && !unlocked) {
     return (
       <View style={styles.root}>
@@ -238,7 +350,22 @@ function AppContent() {
               entryId={entryServerId}
               exitId={serverId}
               onSelectEntry={setEntryServerId}
-              onSelectExit={setServerId}
+              onSelectExit={handleSelectServer}
+              onBack={() => setSubScreen(null)}
+            />
+          ) : subScreen === 'speed-test' ? (
+            <SpeedTestScreen
+              server={server}
+              onBack={() => setSubScreen(null)}
+              onComplete={(results) =>
+                logEvent('speed-test', `Speed test: ${results.download} Mbps down / ${results.upload} Mbps up`)
+              }
+            />
+          ) : subScreen === 'network-history' ? (
+            <NetworkHistoryScreen
+              quality={quality}
+              history={qualityHistory}
+              events={networkEvents}
               onBack={() => setSubScreen(null)}
             />
           ) : (
@@ -247,6 +374,7 @@ function AppContent() {
                 <HomeScreen
                   connected={connected}
                   connecting={connecting}
+                  autoReconnecting={autoReconnecting}
                   server={server}
                   durationStr={formatDuration(seconds)}
                   showStats={connected}
@@ -257,9 +385,13 @@ function AppContent() {
                   protocolLabel={activeMode.protocolLabel}
                   quality={quality}
                   entryServer={mode === 'privacy' ? entryServer : null}
+                  networkType={networkState?.type}
+                  protectBanner={protectBanner}
                   onConnectClick={handleConnectPress}
                   onGoServers={() => setTab('servers')}
                   onOpenMultiHop={() => setSubScreen('multi-hop')}
+                  onOpenHistory={() => setSubScreen('network-history')}
+                  onOpenSpeedTest={() => setSubScreen('speed-test')}
                   onToggleKill={() => setKillSwitch((v) => !v)}
                   onToggleAuto={() => setAutoConnect((v) => !v)}
                 />
@@ -269,10 +401,10 @@ function AppContent() {
                   servers={rankedServers}
                   selectedId={server.id}
                   favorites={favorites}
-                  onSelect={setServerId}
+                  onSelect={handleSelectServer}
                   onToggleFav={(id) => setFavorites((f) => ({ ...f, [id]: !f[id] }))}
                   bestServer={bestServer}
-                  onUseRecommended={setServerId}
+                  onUseRecommended={handleSelectServer}
                 />
               )}
               {tab === 'security' && (
