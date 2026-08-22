@@ -23,6 +23,12 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "37996b7d-3ff7-44e1-8c7b-ec134c9313f4"
+      }
+    },
+    "owner": "judeewahs-team"
   }
 }

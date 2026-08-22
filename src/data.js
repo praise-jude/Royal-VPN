@@ -8,6 +8,28 @@ export const servers = [
   { id: 'paris', country: 'France', city: 'Paris', ping: 44, load: 45, packetLoss: 0.2, jitter: 4 },
   { id: 'singapore', country: 'Singapore', city: 'Singapore', ping: 120, load: 33, packetLoss: 0.3, jitter: 7 },
   { id: 'tokyo', country: 'Japan', city: 'Tokyo', ping: 135, load: 30, packetLoss: 0.2, jitter: 6 },
+
+  // Africa
+  { id: 'johannesburg', country: 'South Africa', city: 'Johannesburg', ping: 45, load: 38, packetLoss: 0.2, jitter: 4 },
+  { id: 'nairobi', country: 'Kenya', city: 'Nairobi', ping: 52, load: 42, packetLoss: 0.3, jitter: 5 },
+  { id: 'accra', country: 'Ghana', city: 'Accra', ping: 58, load: 33, packetLoss: 0.2, jitter: 4 },
+  { id: 'cairo', country: 'Egypt', city: 'Cairo', ping: 68, load: 35, packetLoss: 0.2, jitter: 4 },
+
+  // Europe
+  { id: 'amsterdam', country: 'Netherlands', city: 'Amsterdam', ping: 41, load: 48, packetLoss: 0.2, jitter: 3 },
+  { id: 'zurich', country: 'Switzerland', city: 'Zurich', ping: 43, load: 30, packetLoss: 0.1, jitter: 3 },
+  { id: 'stockholm', country: 'Sweden', city: 'Stockholm', ping: 47, load: 25, packetLoss: 0.1, jitter: 3 },
+
+  // Asia
+  { id: 'mumbai', country: 'India', city: 'Mumbai', ping: 95, load: 55, packetLoss: 0.3, jitter: 6 },
+  { id: 'seoul', country: 'South Korea', city: 'Seoul', ping: 128, load: 38, packetLoss: 0.2, jitter: 5 },
+
+  // Middle East
+  { id: 'dubai', country: 'United Arab Emirates', city: 'Dubai', ping: 78, load: 44, packetLoss: 0.2, jitter: 4 },
+  { id: 'istanbul', country: 'Turkey', city: 'Istanbul', ping: 62, load: 40, packetLoss: 0.2, jitter: 4 },
+
+  // Oceania
+  { id: 'sydney', country: 'Australia', city: 'Sydney', ping: 145, load: 32, packetLoss: 0.3, jitter: 6 },
 ];
 
 export const connectionModes = [
