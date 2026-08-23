@@ -2,6 +2,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import Toggle from '../components/Toggle';
 import SecurityCheck from '../components/SecurityCheck';
+import ProtocolSwitcher from '../components/ProtocolSwitcher';
 import { colors, font } from '../theme';
 
 function Row({ icon, title, subtitle, right }) {
@@ -34,6 +35,8 @@ export default function SecurityScreen({
   onToggleAppLock,
   lockdownEnabled,
   onToggleLockdown,
+  protocol,
+  onChangeProtocol,
   trustedNetworksCount,
   onOpenSplitTunnel,
   onOpenThreatBlocker,
@@ -55,6 +58,8 @@ export default function SecurityScreen({
       <Text style={styles.subtitle}>Your protection status at a glance</Text>
 
       <SecurityCheck checks={checks} />
+
+      <ProtocolSwitcher protocol={protocol} onChange={onChangeProtocol} />
 
       <Pressable style={styles.row} onPress={onOpenThreatBlocker}>
         <View style={styles.rowLeft}>

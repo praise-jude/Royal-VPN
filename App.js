@@ -39,6 +39,7 @@ import {
   threatDomainPool,
   initialTrustedNetworks,
   subscriptionPlans,
+  vpnProtocols,
 } from './src/data';
 import { colors } from './src/theme';
 import { formatDuration, computeConnectionScore, computeMultiHopQuality, rankServers } from './src/utils';
@@ -96,6 +97,7 @@ const EVENT_META = {
   'network-change': { icon: 'signal', color: colors.textFaint6 },
   'speed-test': { icon: 'gauge-high', color: colors.orange },
   lockdown: { icon: 'lock-open', color: colors.red },
+  protocol: { icon: 'arrows-rotate', color: colors.blue },
 };
 
 const NETWORK_LABELS = {
@@ -119,6 +121,7 @@ function AppContent() {
   const [favorites, setFavorites] = useState({ london: true });
   const [signedOutIds, setSignedOutIds] = useState({});
   const [mode, setMode] = useState('balanced');
+  const [protocol, setProtocol] = useState('wireguard');
   const [vpnApps, setVpnApps] = useState({});
   const [subScreen, setSubScreen] = useState(null);
   const [threatBlockerOn, setThreatBlockerOn] = useState(true);
@@ -281,6 +284,8 @@ function AppContent() {
   );
 
   const activeMode = connectionModes.find((m) => m.key === mode) || connectionModes[1];
+  const activeProtocol = vpnProtocols.find((p) => p.key === protocol) || vpnProtocols[0];
+  const protocolLabel = `${activeProtocol.label} · ${activeMode.hopLabel}`;
 
   const quality = useMemo(() => {
     if (mode === 'privacy') return computeMultiHopQuality(entryServer, server);
@@ -514,7 +519,7 @@ function AppContent() {
                   autoConnect={autoConnect}
                   mode={mode}
                   onModeChange={setMode}
-                  protocolLabel={activeMode.protocolLabel}
+                  protocolLabel={protocolLabel}
                   quality={quality}
                   entryServer={mode === 'privacy' ? entryServer : null}
                   networkType={networkState?.type}
@@ -542,6 +547,8 @@ function AppContent() {
                   onToggleFav={(id) => setFavorites((f) => ({ ...f, [id]: !f[id] }))}
                   bestServer={bestServer}
                   onUseRecommended={handleSelectServer}
+                  isPaid={currentPlanId !== 'free'}
+                  onRequireUpgrade={() => setSubScreen('plans')}
                 />
               )}
               {tab === 'security' && (
@@ -555,6 +562,11 @@ function AppContent() {
                   appLockEnabled={appLockEnabled}
                   appLockSupported={appLockSupported}
                   lockdownEnabled={lockdownEnabled}
+                  protocol={protocol}
+                  onChangeProtocol={(p) => {
+                    setProtocol(p);
+                    logEvent('protocol', `Switched protocol to ${vpnProtocols.find((x) => x.key === p)?.label}`);
+                  }}
                   trustedNetworksCount={trustedNetworks.length}
                   onToggleKill={() => setKillSwitch((v) => !v)}
                   onToggleAuto={() => setAutoConnect((v) => !v)}

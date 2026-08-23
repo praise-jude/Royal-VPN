@@ -11,7 +11,32 @@ function loadColor(load) {
   return colors.green;
 }
 
-export default function ServersScreen({ servers, selectedId, favorites, onSelect, onToggleFav, bestServer, onUseRecommended }) {
+export default function ServersScreen({
+  servers,
+  selectedId,
+  favorites,
+  onSelect,
+  onToggleFav,
+  bestServer,
+  onUseRecommended,
+  isPaid,
+  onRequireUpgrade,
+}) {
+  const handleSelect = (sv) => {
+    if (sv.vip && !isPaid) {
+      onRequireUpgrade();
+      return;
+    }
+    onSelect(sv.id);
+  };
+
+  const handleUseRecommended = () => {
+    if (bestServer.vip && !isPaid) {
+      onRequireUpgrade();
+      return;
+    }
+    onUseRecommended(bestServer.id);
+  };
   const [query, setQuery] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [region, setRegion] = useState('all');
@@ -97,7 +122,7 @@ export default function ServersScreen({ servers, selectedId, favorites, onSelect
       </ScrollView>
 
       {bestServer && bestServer.id !== selectedId && !query && !favoritesOnly && region === 'all' && (
-        <AiRouteBanner server={bestServer} onUse={() => onUseRecommended(bestServer.id)} />
+        <AiRouteBanner server={bestServer} onUse={handleUseRecommended} />
       )}
 
       {filtered.length === 0 && (
@@ -109,15 +134,17 @@ export default function ServersScreen({ servers, selectedId, favorites, onSelect
       {filtered.map((sv) => {
         const isSelected = sv.id === selectedId;
         const isFav = !!favorites[sv.id];
+        const isLocked = sv.vip && !isPaid;
         return (
           <Pressable
             key={sv.id}
-            onPress={() => onSelect(sv.id)}
+            onPress={() => handleSelect(sv)}
             style={[
               styles.row,
               {
                 backgroundColor: isSelected ? colors.selectedBg : colors.surface04,
                 borderColor: isSelected ? colors.blue : 'transparent',
+                opacity: isLocked ? 0.6 : 1,
               },
             ]}
           >
@@ -125,17 +152,29 @@ export default function ServersScreen({ servers, selectedId, favorites, onSelect
             <View style={{ flex: 1 }}>
               <View style={styles.cityRow}>
                 <Text style={styles.city}>{sv.city}</Text>
-                {bestServer && sv.id === bestServer.id && (
-                  <View style={styles.bestBadge}>
-                    <Text style={styles.bestBadgeText}>BEST</Text>
+                {isLocked ? (
+                  <View style={styles.vipBadge}>
+                    <FontAwesome6 name="crown" iconStyle="solid" size={8} color="#000" />
+                    <Text style={styles.vipBadgeText}>VIP</Text>
                   </View>
+                ) : (
+                  bestServer &&
+                  sv.id === bestServer.id && (
+                    <View style={styles.bestBadge}>
+                      <Text style={styles.bestBadgeText}>BEST</Text>
+                    </View>
+                  )
                 )}
               </View>
               <Text style={styles.meta}>
                 {sv.country} · Load {sv.load}%
               </Text>
             </View>
-            <Text style={styles.ping}>{sv.ping} ms</Text>
+            {isLocked ? (
+              <FontAwesome6 name="lock" iconStyle="solid" size={13} color={colors.textFaint45} style={{ marginRight: 4 }} />
+            ) : (
+              <Text style={styles.ping}>{sv.ping} ms</Text>
+            )}
             <Pressable hitSlop={8} onPress={() => onToggleFav(sv.id)}>
               <FontAwesome6
                 name="star"
@@ -211,6 +250,16 @@ const styles = StyleSheet.create({
   city: { fontFamily: font.semibold, fontSize: 15, color: '#fff' },
   bestBadge: { backgroundColor: colors.orange, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 9999 },
   bestBadgeText: { fontFamily: font.bold, fontSize: 9, color: '#000', letterSpacing: 0.5 },
+  vipBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.orange,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 9999,
+  },
+  vipBadgeText: { fontFamily: font.bold, fontSize: 9, color: '#000', letterSpacing: 0.5 },
   meta: { fontFamily: font.regular, fontSize: 12, color: colors.textFaint5, marginTop: 2 },
   ping: { fontFamily: font.regular, fontSize: 13, color: colors.textFaint6, marginRight: 4 },
 });
