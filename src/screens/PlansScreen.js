@@ -8,7 +8,6 @@ import { startPaystackCheckout } from '../native/payments';
 import { colors, font } from '../theme';
 
 const API_BASE = 'https://royal-vpn-api-production.up.railway.app';
-const USER_EMAIL = 'ada.okafor@email.com';
 
 function formatNaira(amount) {
   if (!amount) return '₦—';
@@ -34,7 +33,7 @@ export default function PlansScreen({ currentPlanId, onSelectPlan, onBack }) {
       return;
     }
     setPendingPlanId(plan.id);
-    const result = await startPaystackCheckout({ email: USER_EMAIL, planId: plan.id });
+    const result = await startPaystackCheckout({ planId: plan.id });
     setPendingPlanId(null);
     if (result.success) {
       onSelectPlan(plan.id);

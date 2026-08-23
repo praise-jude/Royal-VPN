@@ -4,24 +4,24 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import RmButton from '../components/RmButton';
 import { colors, font } from '../theme';
 
-export default function SettingsScreen({ planLabel, unreadNotifCount, onOpenPlans, onOpenNotifications }) {
+export default function SettingsScreen({ userEmail, planLabel, unreadNotifCount, onOpenPlans, onOpenNotifications, onLogout }) {
   const menuItems = [
     { icon: 'bell', label: 'Notifications', onPress: onOpenNotifications, badge: unreadNotifCount },
     { icon: 'globe', label: 'Language', value: 'English' },
     { icon: 'headset', label: 'Royal Support' },
     { icon: 'lock', label: 'Privacy Center' },
   ];
+  const initial = userEmail ? userEmail.charAt(0).toUpperCase() : '?';
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Settings</Text>
 
       <View style={styles.profileRow}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>A</Text>
+          <Text style={styles.avatarText}>{initial}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.profileName}>Ada Okafor</Text>
-          <Text style={styles.profileEmail}>ada.okafor@email.com</Text>
+          <Text style={styles.profileEmail}>{userEmail}</Text>
         </View>
         <FontAwesome6 name="chevron-right" iconStyle="solid" size={14} color="rgba(255,255,255,0.3)" />
       </View>
@@ -65,7 +65,7 @@ export default function SettingsScreen({ planLabel, unreadNotifCount, onOpenPlan
         })}
       </View>
 
-      <RmButton variant="secondary" size="md" shape="lg" style={{ width: '100%' }}>
+      <RmButton variant="secondary" size="md" shape="lg" style={{ width: '100%' }} onPress={onLogout}>
         Log Out
       </RmButton>
 
@@ -95,8 +95,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { fontFamily: font.bold, fontSize: 18, color: '#000' },
-  profileName: { fontFamily: font.bold, fontSize: 15, color: '#fff' },
-  profileEmail: { fontFamily: font.regular, fontSize: 12, color: colors.textFaint5, marginTop: 2 },
+  profileEmail: { fontFamily: font.bold, fontSize: 15, color: '#fff' },
   planCard: { borderRadius: 16, padding: 18, marginBottom: 14 },
   planHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   planLabel: { fontFamily: font.bold, fontSize: 13, color: '#fff', letterSpacing: 0.5 },

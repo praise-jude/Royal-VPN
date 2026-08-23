@@ -25,12 +25,15 @@ import SplitTunnelScreen from './src/screens/SplitTunnelScreen';
 import ThreatBlockerScreen from './src/screens/ThreatBlockerScreen';
 import MultiHopScreen from './src/screens/MultiHopScreen';
 import AppLockScreen from './src/screens/AppLockScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import SignupScreen from './src/screens/SignupScreen';
 import SpeedTestScreen from './src/screens/SpeedTestScreen';
 import NetworkHistoryScreen from './src/screens/NetworkHistoryScreen';
 import TrustedNetworksScreen from './src/screens/TrustedNetworksScreen';
 import PlansScreen from './src/screens/PlansScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import { isRealVpnAvailable, requestVpnPermission, startRealVpn, stopRealVpn } from './src/native/royalVpn';
+import { signup as apiSignup, login as apiLogin, restoreSession, logout as apiLogout } from './src/native/auth';
 import {
   servers as initialServers,
   devices as initialDevices,
@@ -137,7 +140,10 @@ function AppContent() {
   const [autoReconnecting, setAutoReconnecting] = useState(false);
   const [protectBanner, setProtectBanner] = useState('');
   const [trustedNetworks, setTrustedNetworks] = useState(initialTrustedNetworks);
-  const [currentPlanId, setCurrentPlanId] = useState('pro');
+  const [currentPlanId, setCurrentPlanId] = useState('free');
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authUser, setAuthUser] = useState(null);
+  const [authMode, setAuthMode] = useState('login');
   const [readNotificationIds, setReadNotificationIds] = useState({});
   const networkState = Network.useNetworkState();
   const prevNetworkTypeRef = useRef(null);
@@ -152,6 +158,41 @@ function AppContent() {
     setNetworkEvents((list) =>
       [{ id: eventIdCounter, type, label, time: Date.now(), icon: meta.icon, color: meta.color }, ...list].slice(0, 40)
     );
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const session = await restoreSession();
+      if (session) {
+        setAuthUser({ email: session.email });
+        setCurrentPlanId(session.planId);
+      }
+      setAuthChecked(true);
+    })();
+  }, []);
+
+  const handleLogin = useCallback(async (email, password) => {
+    const result = await apiLogin(email, password);
+    if (result.success) {
+      setAuthUser({ email: result.email });
+      setCurrentPlanId(result.planId);
+    }
+    return result;
+  }, []);
+
+  const handleSignup = useCallback(async (email, password) => {
+    const result = await apiSignup(email, password);
+    if (result.success) {
+      setAuthUser({ email: result.email });
+      setCurrentPlanId(result.planId);
+    }
+    return result;
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await apiLogout();
+    setAuthUser(null);
+    setAuthMode('login');
   }, []);
 
   useEffect(() => {
@@ -425,6 +466,27 @@ function AppContent() {
     return () => clearInterval(id);
   }, [autoReconnecting, killSwitch, logEvent]);
 
+  if (!authChecked) {
+    return (
+      <View style={styles.root}>
+        <StatusBar style="light" />
+      </View>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <View style={styles.root}>
+        <StatusBar style="light" />
+        {authMode === 'login' ? (
+          <LoginScreen onLogin={handleLogin} onGoToSignup={() => setAuthMode('signup')} />
+        ) : (
+          <SignupScreen onSignup={handleSignup} onGoToLogin={() => setAuthMode('login')} />
+        )}
+      </View>
+    );
+  }
+
   if (appLockEnabled && appLockSupported && !unlocked) {
     return (
       <View style={styles.root}>
@@ -595,10 +657,12 @@ function AppContent() {
               )}
               {tab === 'settings' && (
                 <SettingsScreen
+                  userEmail={authUser?.email}
                   planLabel={subscriptionPlanLabel}
                   unreadNotifCount={unreadNotifCount}
                   onOpenPlans={() => setSubScreen('plans')}
                   onOpenNotifications={() => setSubScreen('notifications')}
+                  onLogout={handleLogout}
                 />
               )}
             </>

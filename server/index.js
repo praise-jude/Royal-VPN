@@ -1,11 +1,32 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const PAYSTACK_BASE = 'https://api.paystack.co';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : undefined,
+});
+
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      plan_id TEXT NOT NULL DEFAULT 'free',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+}
 
 // Server-side plan registry. The client sends only a planId; the price is
 // looked up here so a tampered client can never charge an arbitrary amount.
@@ -19,7 +40,71 @@ app.use(express.json());
 // Webhook needs the raw body for signature verification.
 app.use('/paystack/webhook', express.raw({ type: 'application/json' }));
 
+function signToken(user) {
+  return jwt.sign({ uid: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
+}
+
+async function requireAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token || !JWT_SECRET) {
+    return res.status(401).json({ error: 'Not authenticated.' });
+  }
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const { rows } = await pool.query('SELECT id, email, plan_id FROM users WHERE id = $1', [payload.uid]);
+    if (!rows[0]) return res.status(401).json({ error: 'Not authenticated.' });
+    req.user = rows[0];
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: 'Not authenticated.' });
+  }
+}
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+app.post('/auth/signup', async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password || password.length < 8) {
+    return res.status(400).json({ error: 'Email and an 8+ character password are required.' });
+  }
+  try {
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    if (existing.rows[0]) {
+      return res.status(409).json({ error: 'An account with that email already exists.' });
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const { rows } = await pool.query(
+      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, plan_id',
+      [email.toLowerCase(), passwordHash]
+    );
+    const user = rows[0];
+    return res.json({ token: signToken(user), email: user.email, planId: user.plan_id });
+  } catch (e) {
+    return res.status(500).json({ error: 'Could not create account.' });
+  }
+});
+
+app.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    const user = rows[0];
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      return res.status(401).json({ error: 'Incorrect email or password.' });
+    }
+    return res.json({ token: signToken(user), email: user.email, planId: user.plan_id });
+  } catch (e) {
+    return res.status(500).json({ error: 'Could not log in.' });
+  }
+});
+
+app.get('/auth/me', requireAuth, (req, res) => {
+  res.json({ email: req.user.email, planId: req.user.plan_id });
+});
 
 app.get('/paystack/plans', (_req, res) => {
   res.json({
@@ -28,14 +113,14 @@ app.get('/paystack/plans', (_req, res) => {
   });
 });
 
-app.post('/paystack/initialize', async (req, res) => {
+app.post('/paystack/initialize', requireAuth, async (req, res) => {
   if (!PAYSTACK_SECRET_KEY) {
     return res.status(500).json({ error: 'Payment provider is not configured yet.' });
   }
-  const { email, planId } = req.body || {};
+  const { planId } = req.body || {};
   const plan = PLANS[planId];
-  if (!email || !plan || !plan.amountNaira) {
-    return res.status(400).json({ error: 'Invalid email or plan.' });
+  if (!plan || !plan.amountNaira) {
+    return res.status(400).json({ error: 'Invalid plan.' });
   }
 
   try {
@@ -46,10 +131,10 @@ app.post('/paystack/initialize', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email,
+        email: req.user.email,
         amount: Math.round(plan.amountNaira * 100), // kobo
         currency: 'NGN',
-        metadata: { planId, planName: plan.name },
+        metadata: { planId, planName: plan.name, uid: req.user.id },
       }),
     });
     const data = await response.json();
@@ -65,7 +150,7 @@ app.post('/paystack/initialize', async (req, res) => {
   }
 });
 
-app.get('/paystack/verify/:reference', async (req, res) => {
+app.get('/paystack/verify/:reference', requireAuth, async (req, res) => {
   if (!PAYSTACK_SECRET_KEY) {
     return res.status(500).json({ error: 'Payment provider is not configured yet.' });
   }
@@ -80,21 +165,23 @@ app.get('/paystack/verify/:reference', async (req, res) => {
       return res.status(502).json({ error: data.message || 'Could not verify payment.' });
     }
     const paid = data.data.status === 'success';
-    return res.json({
-      paid,
-      planId: data.data.metadata?.planId || null,
-      amountNaira: data.data.amount / 100,
-    });
+    const planId = data.data.metadata?.planId || null;
+    const uid = data.data.metadata?.uid;
+
+    if (paid && planId && uid) {
+      await pool.query('UPDATE users SET plan_id = $1 WHERE id = $2', [planId, uid]);
+    }
+
+    return res.json({ paid, planId, amountNaira: data.data.amount / 100 });
   } catch (err) {
     return res.status(502).json({ error: 'Could not reach payment provider.' });
   }
 });
 
-// Source of truth for "did this payment really happen" -- verified via HMAC
-// signature, independent of anything the client claims. No database wired
-// up yet, so this only logs; persisting subscription state server-side is
-// the next step once there's an accounts system to attach it to.
-app.post('/paystack/webhook', (req, res) => {
+// Independent source of truth for "did this payment really happen" --
+// verified via HMAC signature, not anything the client claims. Also
+// updates plan_id server-side so a tampered client can't fake an upgrade.
+app.post('/paystack/webhook', async (req, res) => {
   if (!PAYSTACK_SECRET_KEY) return res.sendStatus(500);
 
   const signature = req.headers['x-paystack-signature'];
@@ -105,9 +192,29 @@ app.post('/paystack/webhook', (req, res) => {
 
   const event = JSON.parse(req.body.toString('utf8'));
   console.log('Paystack webhook event:', event.event, event.data?.reference);
+
+  if (event.event === 'charge.success') {
+    const planId = event.data?.metadata?.planId;
+    const uid = event.data?.metadata?.uid;
+    if (planId && uid) {
+      try {
+        await pool.query('UPDATE users SET plan_id = $1 WHERE id = $2', [planId, uid]);
+      } catch (e) {
+        console.error('Failed to update plan from webhook:', e.message);
+      }
+    }
+  }
+
   return res.sendStatus(200);
 });
 
-app.listen(PORT, () => {
-  console.log(`Royal-VPN payment server listening on port ${PORT}`);
-});
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Royal-VPN server listening on port ${PORT}`);
+    });
+  })
+  .catch((e) => {
+    console.error('Failed to initialize database:', e.message);
+    process.exit(1);
+  });
