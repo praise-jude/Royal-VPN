@@ -32,9 +32,17 @@ import NetworkHistoryScreen from './src/screens/NetworkHistoryScreen';
 import TrustedNetworksScreen from './src/screens/TrustedNetworksScreen';
 import PlansScreen from './src/screens/PlansScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
-import { isRealVpnAvailable, requestVpnPermission, startRealVpn, stopRealVpn, checkRealVpnActive } from './src/native/royalVpn';
+import {
+  isRealVpnAvailable,
+  requestVpnPermission,
+  startRealVpn,
+  stopRealVpn,
+  checkRealVpnActive,
+  getDevicePublicKey,
+} from './src/native/royalVpn';
 import { signup as apiSignup, login as apiLogin, restoreSession, logout as apiLogout } from './src/native/auth';
 import { fetchServers } from './src/native/servers';
+import { registerPilotPeer } from './src/native/vpnConfig';
 import {
   serverRegionMap,
   devices as initialDevices,
@@ -350,13 +358,39 @@ function AppContent() {
             logEvent('disconnect', 'VPN permission was not granted');
             return;
           }
-          await startRealVpn();
-        }
-        setTimeout(() => {
+          const publicKey = await getDevicePublicKey();
+          if (!publicKey) {
+            setConnecting(false);
+            logEvent('disconnect', 'Could not generate a device key');
+            return;
+          }
+          const registration = await registerPilotPeer(publicKey);
+          if (!registration.success) {
+            setConnecting(false);
+            logEvent('disconnect', registration.error || 'Could not reach the pilot server');
+            return;
+          }
+          const started = await startRealVpn({
+            serverPublicKey: registration.serverPublicKey,
+            endpoint: registration.endpoint,
+            clientAddress: registration.clientAddress,
+            dns: registration.dns,
+          });
+          if (!started) {
+            setConnecting(false);
+            logEvent('disconnect', 'Could not start the WireGuard tunnel');
+            return;
+          }
           setConnecting(false);
           setConnected(true);
           logEvent('connect', 'Connected');
-        }, 1400);
+        } else {
+          setTimeout(() => {
+            setConnecting(false);
+            setConnected(true);
+            logEvent('connect', 'Connected');
+          }, 800);
+        }
       })();
     }
   }, [connected, connecting, logEvent, lockdownEnabled, server]);

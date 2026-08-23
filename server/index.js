@@ -134,14 +134,40 @@ app.get('/servers', async (_req, res) => {
   res.json({ servers: [pilotServer, ...comingSoon] });
 });
 
-app.get('/vpn/pilot-config', requireAuth, (req, res) => {
-  if (!PILOT.wgHost || !PILOT.wgPublicKey) {
+const WG_PUBLIC_KEY_RE = /^[A-Za-z0-9+/]{42,43}=$/;
+
+app.post('/vpn/pilot-config', requireAuth, async (req, res) => {
+  if (!PILOT.wgHost || !PILOT.wgPublicKey || !PILOT.host || !PILOT.statusKey) {
     return res.status(503).json({ error: 'The pilot server is not configured yet.' });
   }
-  res.json({
-    endpoint: `${PILOT.wgHost}:${PILOT.wgPort}`,
-    serverPublicKey: PILOT.wgPublicKey,
-  });
+  const { publicKey } = req.body || {};
+  if (typeof publicKey !== 'string' || !WG_PUBLIC_KEY_RE.test(publicKey)) {
+    return res.status(400).json({ error: 'A valid WireGuard public key is required.' });
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const response = await fetch(`http://${PILOT.host}:${PILOT.statusPort}/peer`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-royal-status-key': PILOT.statusKey },
+      body: JSON.stringify({ publicKey }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) {
+      return res.status(502).json({ error: 'Could not register this device with the pilot server.' });
+    }
+    const { address } = await response.json();
+    res.json({
+      endpoint: `${PILOT.wgHost}:${PILOT.wgPort}`,
+      serverPublicKey: PILOT.wgPublicKey,
+      clientAddress: `${address}/32`,
+      dns: '1.1.1.1',
+    });
+  } catch (e) {
+    res.status(502).json({ error: 'Could not reach the pilot server.' });
+  }
 });
 
 app.post('/auth/signup', async (req, res) => {

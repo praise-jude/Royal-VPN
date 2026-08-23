@@ -12,19 +12,30 @@ export async function requestVpnPermission() {
   }
 }
 
-export async function startRealVpn() {
-  if (!isRealVpnAvailable) return;
+// The device's WireGuard public key, generated and persisted on-device.
+// The matching private key never leaves the device.
+export async function getDevicePublicKey() {
+  if (!isRealVpnAvailable) return null;
   try {
-    await RoyalVpnAndroid.start();
+    return await RoyalVpnAndroid.getPublicKeyAsync();
   } catch (e) {
-    // no-op: the app's own mock connection state still governs the UI
+    return null;
+  }
+}
+
+export async function startRealVpn({ serverPublicKey, endpoint, clientAddress, dns }) {
+  if (!isRealVpnAvailable) return false;
+  try {
+    return await RoyalVpnAndroid.startTunnelAsync(serverPublicKey, endpoint, clientAddress, dns);
+  } catch (e) {
+    return false;
   }
 }
 
 export async function stopRealVpn() {
   if (!isRealVpnAvailable) return;
   try {
-    await RoyalVpnAndroid.stop();
+    await RoyalVpnAndroid.stopTunnelAsync();
   } catch (e) {
     // no-op
   }
