@@ -13,6 +13,7 @@ function loadColor(load) {
 
 export default function ServersScreen({
   servers,
+  serversLoading,
   selectedId,
   favorites,
   onSelect,
@@ -23,6 +24,7 @@ export default function ServersScreen({
   onRequireUpgrade,
 }) {
   const handleSelect = (sv) => {
+    if (!sv.live) return;
     if (sv.vip && !isPaid) {
       onRequireUpgrade();
       return;
@@ -31,6 +33,7 @@ export default function ServersScreen({
   };
 
   const handleUseRecommended = () => {
+    if (!bestServer) return;
     if (bestServer.vip && !isPaid) {
       onRequireUpgrade();
       return;
@@ -125,7 +128,11 @@ export default function ServersScreen({
         <AiRouteBanner server={bestServer} onUse={handleUseRecommended} />
       )}
 
-      {filtered.length === 0 && (
+      {serversLoading && filtered.length === 0 && (
+        <Text style={styles.emptyText}>Loading real server status…</Text>
+      )}
+
+      {!serversLoading && filtered.length === 0 && (
         <Text style={styles.emptyText}>
           {favoritesOnly ? 'No favorite servers yet — tap the star on a server to save it.' : 'No servers match this filter.'}
         </Text>
@@ -134,7 +141,8 @@ export default function ServersScreen({
       {filtered.map((sv) => {
         const isSelected = sv.id === selectedId;
         const isFav = !!favorites[sv.id];
-        const isLocked = sv.vip && !isPaid;
+        const isVipLocked = sv.live && sv.vip && !isPaid;
+        const isDimmed = !sv.live || isVipLocked;
         return (
           <Pressable
             key={sv.id}
@@ -144,15 +152,24 @@ export default function ServersScreen({
               {
                 backgroundColor: isSelected ? colors.selectedBg : colors.surface04,
                 borderColor: isSelected ? colors.blue : 'transparent',
-                opacity: isLocked ? 0.6 : 1,
+                opacity: isDimmed ? 0.6 : 1,
               },
             ]}
           >
-            <View style={[styles.loadDot, { backgroundColor: loadColor(sv.load) }]} />
+            <View
+              style={[
+                styles.loadDot,
+                { backgroundColor: sv.live ? loadColor(sv.load) : colors.textFaint45 },
+              ]}
+            />
             <View style={{ flex: 1 }}>
               <View style={styles.cityRow}>
                 <Text style={styles.city}>{sv.city}</Text>
-                {isLocked ? (
+                {!sv.live ? (
+                  <View style={styles.soonBadge}>
+                    <Text style={styles.soonBadgeText}>COMING SOON</Text>
+                  </View>
+                ) : isVipLocked ? (
                   <View style={styles.vipBadge}>
                     <FontAwesome6 name="crown" iconStyle="solid" size={8} color="#000" />
                     <Text style={styles.vipBadgeText}>VIP</Text>
@@ -167,10 +184,10 @@ export default function ServersScreen({
                 )}
               </View>
               <Text style={styles.meta}>
-                {sv.country} · Load {sv.load}%
+                {sv.country} {sv.live ? `· Load ${sv.load}%` : ''}
               </Text>
             </View>
-            {isLocked ? (
+            {!sv.live ? null : isVipLocked ? (
               <FontAwesome6 name="lock" iconStyle="solid" size={13} color={colors.textFaint45} style={{ marginRight: 4 }} />
             ) : (
               <Text style={styles.ping}>{sv.ping} ms</Text>
@@ -260,6 +277,13 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
   },
   vipBadgeText: { fontFamily: font.bold, fontSize: 9, color: '#000', letterSpacing: 0.5 },
+  soonBadge: {
+    backgroundColor: colors.surface08,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 9999,
+  },
+  soonBadgeText: { fontFamily: font.bold, fontSize: 8, color: colors.textFaint6, letterSpacing: 0.5 },
   meta: { fontFamily: font.regular, fontSize: 12, color: colors.textFaint5, marginTop: 2 },
   ping: { fontFamily: font.regular, fontSize: 13, color: colors.textFaint6, marginRight: 4 },
 });

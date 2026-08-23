@@ -63,6 +63,86 @@ async function requireAuth(req, res, next) {
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+// The one real, live server backing this app. Everything else is honestly
+// marked "coming soon" rather than shown with fabricated ping/load numbers.
+const PILOT = {
+  id: 'pilot-nyc1',
+  city: 'New York',
+  country: 'United States',
+  flag: '🇺🇸',
+  host: process.env.PILOT_STATUS_HOST,
+  statusPort: Number(process.env.PILOT_STATUS_PORT || 8081),
+  statusKey: process.env.PILOT_STATUS_KEY,
+  wgHost: process.env.PILOT_WG_HOST,
+  wgPort: Number(process.env.PILOT_WG_PORT || 51820),
+  wgPublicKey: process.env.PILOT_WG_PUBLIC_KEY,
+};
+
+const COMING_SOON_LOCATIONS = [
+  { id: 'lon1', city: 'London', country: 'United Kingdom', flag: '🇬🇧' },
+  { id: 'lag1', city: 'Lagos', country: 'Nigeria', flag: '🇳🇬' },
+  { id: 'fra1', city: 'Paris', country: 'France', flag: '🇫🇷' },
+  { id: 'sin1', city: 'Singapore', country: 'Singapore', flag: '🇸🇬' },
+  { id: 'tok1', city: 'Tokyo', country: 'Japan', flag: '🇯🇵' },
+];
+
+async function fetchPilotStatus() {
+  if (!PILOT.host || !PILOT.statusKey) return null;
+  const started = Date.now();
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const response = await fetch(`http://${PILOT.host}:${PILOT.statusPort}/status`, {
+      headers: { 'x-royal-status-key': PILOT.statusKey },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return { ...data, pingMs: Date.now() - started };
+  } catch (e) {
+    return null;
+  }
+}
+
+app.get('/servers', async (_req, res) => {
+  const live = await fetchPilotStatus();
+  const pilotServer = {
+    id: PILOT.id,
+    city: PILOT.city,
+    country: PILOT.country,
+    flag: PILOT.flag,
+    vip: false,
+    live: true,
+    status: live ? 'AVAILABLE' : 'TEMPORARILY OFFLINE',
+    pingMs: live ? live.pingMs : null,
+    loadPct: live ? live.memUsedPct : null,
+    activeUsers: live ? live.wgActivePeers : null,
+  };
+
+  const comingSoon = COMING_SOON_LOCATIONS.map((loc) => ({
+    ...loc,
+    vip: true,
+    live: false,
+    status: 'COMING SOON',
+    pingMs: null,
+    loadPct: null,
+    activeUsers: null,
+  }));
+
+  res.json({ servers: [pilotServer, ...comingSoon] });
+});
+
+app.get('/vpn/pilot-config', requireAuth, (req, res) => {
+  if (!PILOT.wgHost || !PILOT.wgPublicKey) {
+    return res.status(503).json({ error: 'The pilot server is not configured yet.' });
+  }
+  res.json({
+    endpoint: `${PILOT.wgHost}:${PILOT.wgPort}`,
+    serverPublicKey: PILOT.wgPublicKey,
+  });
+});
+
 app.post('/auth/signup', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password || password.length < 8) {

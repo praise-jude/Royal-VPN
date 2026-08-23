@@ -22,6 +22,7 @@ export default function HomeScreen({
   autoConnect,
   mode,
   onModeChange,
+  disabledModeKeys,
   protocolLabel,
   quality,
   entryServer,
@@ -135,7 +136,7 @@ export default function HomeScreen({
         </View>
       )}
 
-      <ModeSwitcher mode={mode} onChange={onModeChange} />
+      <ModeSwitcher mode={mode} onChange={onModeChange} disabledKeys={disabledModeKeys} />
 
       <Pressable onPress={onOpenSpeedTest} style={styles.speedTestBtn}>
         <FontAwesome6 name="gauge-high" iconStyle="solid" size={14} color={colors.orange} />

@@ -32,10 +32,11 @@ import NetworkHistoryScreen from './src/screens/NetworkHistoryScreen';
 import TrustedNetworksScreen from './src/screens/TrustedNetworksScreen';
 import PlansScreen from './src/screens/PlansScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
-import { isRealVpnAvailable, requestVpnPermission, startRealVpn, stopRealVpn } from './src/native/royalVpn';
+import { isRealVpnAvailable, requestVpnPermission, startRealVpn, stopRealVpn, checkRealVpnActive } from './src/native/royalVpn';
 import { signup as apiSignup, login as apiLogin, restoreSession, logout as apiLogout } from './src/native/auth';
+import { fetchServers } from './src/native/servers';
 import {
-  servers as initialServers,
+  serverRegionMap,
   devices as initialDevices,
   connectionModes,
   initialThreatCounts,
@@ -91,6 +92,21 @@ const STATIC_NOTIFICATIONS = [
 
 const APP_LOCK_STORAGE_KEY = 'royal-vpn:app-lock-enabled';
 
+// Shown only while the live server list is still loading from the backend --
+// never a stand-in for real ping/load numbers.
+const PLACEHOLDER_SERVER = {
+  id: null,
+  city: 'Loading…',
+  country: '',
+  region: 'other',
+  live: false,
+  status: 'LOADING',
+  ping: null,
+  load: null,
+  packetLoss: 0,
+  jitter: 0,
+};
+
 const EVENT_META = {
   connect: { icon: 'power-off', color: colors.green },
   disconnect: { icon: 'power-off', color: colors.red },
@@ -112,16 +128,17 @@ function AppContent() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = 58 + Math.max(insets.bottom, 12);
   const [tab, setTab] = useState('home');
-  const [connected, setConnected] = useState(true);
+  const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const [seconds, setSeconds] = useState(2538);
-  const [serverId, setServerId] = useState('lagos');
-  const [entryServerId, setEntryServerId] = useState('frankfurt');
+  const [seconds, setSeconds] = useState(0);
+  const [servers, setServers] = useState([]);
+  const [serversLoading, setServersLoading] = useState(true);
+  const [serverId, setServerId] = useState(null);
   const [killSwitch, setKillSwitch] = useState(true);
   const [lockdownEnabled, setLockdownEnabled] = useState(false);
   const [autoConnect, setAutoConnect] = useState(true);
   const [twoFA, setTwoFA] = useState(false);
-  const [favorites, setFavorites] = useState({ london: true });
+  const [favorites, setFavorites] = useState({});
   const [signedOutIds, setSignedOutIds] = useState({});
   const [mode, setMode] = useState('balanced');
   const [protocol, setProtocol] = useState('wireguard');
@@ -169,6 +186,46 @@ function AppContent() {
       }
       setAuthChecked(true);
     })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const isActive = await checkRealVpnActive();
+      if (isActive) {
+        setConnected(true);
+        logEvent('connect', 'Restored an already-active VPN session');
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadServers() {
+      try {
+        const list = await fetchServers();
+        if (cancelled) return;
+        const enriched = list.map((sv) => ({
+          ...sv,
+          region: serverRegionMap[sv.id] || 'other',
+          ping: sv.pingMs,
+          load: sv.loadPct,
+          packetLoss: 0,
+          jitter: 0,
+        }));
+        setServers(enriched);
+        setServerId((prev) => prev || enriched.find((s) => s.live)?.id || enriched[0]?.id || null);
+      } catch (e) {
+        // Keep whatever server list we already have; the next poll will retry.
+      } finally {
+        if (!cancelled) setServersLoading(false);
+      }
+    }
+    loadServers();
+    const interval = setInterval(loadServers, 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const handleLogin = useCallback(async (email, password) => {
@@ -262,8 +319,19 @@ function AppContent() {
     [threatCounts]
   );
 
+  const liveServers = useMemo(() => servers.filter((s) => s.live), [servers]);
+
+  const server = useMemo(
+    () => servers.find((s) => s.id === serverId) || liveServers[0] || PLACEHOLDER_SERVER,
+    [servers, serverId, liveServers]
+  );
+
   const handleConnectPress = useCallback(() => {
     if (connecting) return;
+    if (!connected && !server?.live) {
+      logEvent('disconnect', 'No live server is available yet');
+      return;
+    }
     if (connected) {
       setConnected(false);
       setSeconds(0);
@@ -291,33 +359,27 @@ function AppContent() {
         }, 1400);
       })();
     }
-  }, [connected, connecting, logEvent, lockdownEnabled]);
+  }, [connected, connecting, logEvent, lockdownEnabled, server]);
 
   const handleSelectServer = useCallback(
     (id) => {
-      const target = initialServers.find((s) => s.id === id);
+      const target = servers.find((s) => s.id === id);
       setServerId(id);
       if (target) logEvent('server-switch', `Switched exit server to ${target.city}`);
     },
-    [logEvent]
+    [logEvent, servers]
   );
 
-  const server = useMemo(
-    () => initialServers.find((s) => s.id === serverId) || initialServers[0],
-    [serverId]
-  );
+  const [entryServerId, setEntryServerId] = useState(null);
 
-  const entryServer = useMemo(
-    () => initialServers.find((s) => s.id === entryServerId) || initialServers[1],
-    [entryServerId]
-  );
-
-  useEffect(() => {
-    if (entryServerId === serverId) {
-      const fallback = initialServers.find((s) => s.id !== serverId);
-      if (fallback) setEntryServerId(fallback.id);
-    }
-  }, [entryServerId, serverId]);
+  const entryServer = useMemo(() => {
+    if (mode !== 'privacy') return null;
+    return (
+      liveServers.find((s) => s.id === entryServerId && s.id !== server.id) ||
+      liveServers.find((s) => s.id !== server.id) ||
+      null
+    );
+  }, [liveServers, entryServerId, server, mode]);
 
   const devices = useMemo(
     () => initialDevices.filter((d) => !signedOutIds[d.id]),
@@ -329,7 +391,8 @@ function AppContent() {
   const protocolLabel = `${activeProtocol.label} · ${activeMode.hopLabel}`;
 
   const quality = useMemo(() => {
-    if (mode === 'privacy') return computeMultiHopQuality(entryServer, server);
+    if (!server.live) return { score: 0, label: serversLoading ? 'Loading' : 'Unavailable', color: colors.textFaint5 };
+    if (mode === 'privacy' && entryServer) return computeMultiHopQuality(entryServer, server);
     return computeConnectionScore({
       ping: server.ping,
       packetLoss: server.packetLoss,
@@ -337,13 +400,23 @@ function AppContent() {
       load: server.load,
       latencyPenalty: activeMode.latencyPenalty,
     });
-  }, [server, entryServer, mode, activeMode]);
+  }, [server, entryServer, mode, activeMode, serversLoading]);
 
-  const rankedServers = useMemo(
-    () => rankServers(initialServers, activeMode.latencyPenalty),
-    [activeMode]
+  const rankedLiveServers = useMemo(
+    () => rankServers(liveServers, activeMode.latencyPenalty),
+    [liveServers, activeMode]
   );
-  const bestServer = rankedServers[0];
+  const bestServer = rankedLiveServers[0] || null;
+  const disabledModeKeys = liveServers.length < 2 ? ['privacy'] : [];
+
+  useEffect(() => {
+    if (disabledModeKeys.includes(mode)) setMode('balanced');
+  }, [disabledModeKeys, mode]);
+  const comingSoonServers = useMemo(() => servers.filter((s) => !s.live), [servers]);
+  const allServersForDisplay = useMemo(
+    () => [...rankedLiveServers, ...comingSoonServers],
+    [rankedLiveServers, comingSoonServers]
+  );
 
   const notifications = useMemo(() => {
     const fromEvents = networkEvents.map((e) => ({
@@ -522,6 +595,7 @@ function AppContent() {
             />
           ) : subScreen === 'multi-hop' ? (
             <MultiHopScreen
+              servers={liveServers}
               entryId={entryServerId}
               exitId={serverId}
               onSelectEntry={setEntryServerId}
@@ -581,6 +655,7 @@ function AppContent() {
                   autoConnect={autoConnect}
                   mode={mode}
                   onModeChange={setMode}
+                  disabledModeKeys={disabledModeKeys}
                   protocolLabel={protocolLabel}
                   quality={quality}
                   entryServer={mode === 'privacy' ? entryServer : null}
@@ -602,7 +677,8 @@ function AppContent() {
               )}
               {tab === 'servers' && (
                 <ServersScreen
-                  servers={rankedServers}
+                  servers={allServersForDisplay}
+                  serversLoading={serversLoading}
                   selectedId={server.id}
                   favorites={favorites}
                   onSelect={handleSelectServer}

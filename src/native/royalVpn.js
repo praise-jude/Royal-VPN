@@ -29,3 +29,12 @@ export async function stopRealVpn() {
     // no-op
   }
 }
+
+export async function checkRealVpnActive() {
+  if (!isRealVpnAvailable) return false;
+  try {
+    return await RoyalVpnAndroid.isActive();
+  } catch (e) {
+    return false;
+  }
+}

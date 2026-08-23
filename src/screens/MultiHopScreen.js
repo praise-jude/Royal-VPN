@@ -1,7 +1,8 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { FontAwesome6 } from '@expo/vector-icons';
 import BackHeader from '../components/BackHeader';
 import HopChain from '../components/HopChain';
-import { servers, connectionModes } from '../data';
+import { connectionModes } from '../data';
 import { computeMultiHopQuality } from '../utils';
 import { colors, font } from '../theme';
 
@@ -39,11 +40,30 @@ function ServerPicker({ title, servers, selectedId, excludeId, onSelect }) {
   );
 }
 
-export default function MultiHopScreen({ entryId, exitId, onSelectEntry, onSelectExit, onBack }) {
-  const entry = servers.find((s) => s.id === entryId) || servers[0];
-  const exit = servers.find((s) => s.id === exitId) || servers[1];
-  const quality = computeMultiHopQuality(entry, exit);
+export default function MultiHopScreen({ servers, entryId, exitId, onSelectEntry, onSelectExit, onBack }) {
   const tradeoff = connectionModes.find((m) => m.key === 'privacy').tradeoff;
+
+  if (servers.length < 2) {
+    return (
+      <View>
+        <BackHeader title="Multi-Hop Route" onBack={onBack} />
+        <View style={styles.container}>
+          <View style={styles.emptyState}>
+            <FontAwesome6 name="route" iconStyle="solid" size={28} color={colors.textFaint45} />
+            <Text style={styles.emptyTitle}>Multi-Hop is coming soon</Text>
+            <Text style={styles.emptyText}>
+              Routing through two servers needs at least two live locations. Only{' '}
+              {servers.length} is live right now — more real servers are on the way.
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const entry = servers.find((s) => s.id === entryId) || servers[0];
+  const exit = servers.find((s) => s.id === exitId && s.id !== entry.id) || servers.find((s) => s.id !== entry.id);
+  const quality = computeMultiHopQuality(entry, exit);
 
   return (
     <View>
@@ -108,6 +128,16 @@ export default function MultiHopScreen({ entryId, exitId, onSelectEntry, onSelec
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 20 },
+  emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  emptyTitle: { fontFamily: font.bold, fontSize: 16, color: '#fff' },
+  emptyText: {
+    fontFamily: font.regular,
+    fontSize: 13,
+    color: colors.textFaint5,
+    textAlign: 'center',
+    lineHeight: 19,
+    paddingHorizontal: 12,
+  },
   subtitle: { fontFamily: font.regular, fontSize: 13, color: colors.textFaint5, lineHeight: 19, marginBottom: 18 },
   chainCard: { backgroundColor: colors.surface06, borderRadius: 16, padding: 16, marginBottom: 14 },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 22 },

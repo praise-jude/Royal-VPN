@@ -3,34 +3,45 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { connectionModes } from '../data';
 import { colors, font } from '../theme';
 
-export default function ModeSwitcher({ mode, onChange }) {
+export default function ModeSwitcher({ mode, onChange, disabledKeys = [] }) {
   const active = connectionModes.find((m) => m.key === mode) || connectionModes[1];
+  const isActiveDisabled = disabledKeys.includes(active.key);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.segments}>
         {connectionModes.map((m) => {
           const isActive = m.key === mode;
+          const isDisabled = disabledKeys.includes(m.key);
           return (
             <Pressable
               key={m.key}
-              onPress={() => onChange(m.key)}
-              style={[styles.segment, isActive && styles.segmentActive]}
+              onPress={() => !isDisabled && onChange(m.key)}
+              style={[styles.segment, isActive && styles.segmentActive, isDisabled && styles.segmentDisabled]}
             >
               <FontAwesome6
                 name={m.icon}
                 iconStyle="solid"
                 size={12}
-                color={isActive ? '#000' : colors.textFaint7}
+                color={isActive ? '#000' : isDisabled ? colors.textFaint45 : colors.textFaint7}
               />
-              <Text style={[styles.segmentLabel, isActive && styles.segmentLabelActive]}>
+              <Text
+                style={[
+                  styles.segmentLabel,
+                  isActive && styles.segmentLabelActive,
+                  isDisabled && styles.segmentLabelDisabled,
+                ]}
+              >
                 {m.label}
               </Text>
+              {isDisabled && <Text style={styles.segmentSoon}>SOON</Text>}
             </Pressable>
           );
         })}
       </View>
-      <Text style={styles.tagline}>{active.tagline}</Text>
+      <Text style={styles.tagline}>
+        {isActiveDisabled ? 'Requires 2+ live server locations — coming soon' : active.tagline}
+      </Text>
 
       <View style={styles.tradeoffRow}>
         <View style={styles.tradeoffItem}>
@@ -71,8 +82,17 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   segmentActive: { backgroundColor: colors.orange },
+  segmentDisabled: { opacity: 0.5 },
   segmentLabel: { fontFamily: font.semibold, fontSize: 11.5, color: colors.textFaint7 },
   segmentLabelActive: { color: '#000' },
+  segmentLabelDisabled: { color: colors.textFaint45 },
+  segmentSoon: {
+    fontFamily: font.bold,
+    fontSize: 7,
+    color: colors.textFaint45,
+    letterSpacing: 0.5,
+    marginLeft: 2,
+  },
   tagline: {
     fontFamily: font.regular,
     fontSize: 11,
