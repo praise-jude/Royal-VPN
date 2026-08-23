@@ -36,6 +36,20 @@ const PLANS = {
   vip: { name: 'VIP', amountNaira: Number(process.env.PLAN_VIP_NGN || 0) },
 };
 
+// Grandfathered accounts always get full VIP access without paying --
+// their plan_id in the database is never touched, so this is a pure
+// runtime override that's trivial to revoke by editing the env var.
+const GRANDFATHERED_EMAILS = new Set(
+  (process.env.GRANDFATHERED_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+function effectivePlanId(user) {
+  return GRANDFATHERED_EMAILS.has(user.email.toLowerCase()) ? 'vip' : user.plan_id;
+}
+
 app.use(cors());
 app.use(express.json());
 // Webhook needs the raw body for signature verification.
@@ -55,7 +69,7 @@ async function requireAuth(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     const { rows } = await pool.query('SELECT id, email, plan_id FROM users WHERE id = $1', [payload.uid]);
     if (!rows[0]) return res.status(401).json({ error: 'Not authenticated.' });
-    req.user = rows[0];
+    req.user = { ...rows[0], plan_id: effectivePlanId(rows[0]) };
     next();
   } catch (e) {
     return res.status(401).json({ error: 'Not authenticated.' });
@@ -186,7 +200,7 @@ app.post('/auth/signup', async (req, res) => {
       [email.toLowerCase(), passwordHash]
     );
     const user = rows[0];
-    return res.json({ token: signToken(user), email: user.email, planId: user.plan_id });
+    return res.json({ token: signToken(user), email: user.email, planId: effectivePlanId(user) });
   } catch (e) {
     return res.status(500).json({ error: 'Could not create account.' });
   }
@@ -203,7 +217,7 @@ app.post('/auth/login', async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: 'Incorrect email or password.' });
     }
-    return res.json({ token: signToken(user), email: user.email, planId: user.plan_id });
+    return res.json({ token: signToken(user), email: user.email, planId: effectivePlanId(user) });
   } catch (e) {
     return res.status(500).json({ error: 'Could not log in.' });
   }
@@ -222,6 +236,9 @@ app.get('/paystack/plans', (_req, res) => {
 });
 
 app.post('/paystack/initialize', requireAuth, async (req, res) => {
+  if (req.user.plan_id === 'vip' && GRANDFATHERED_EMAILS.has(req.user.email.toLowerCase())) {
+    return res.status(400).json({ error: 'This account already has full VIP access.' });
+  }
   if (!PAYSTACK_SECRET_KEY) {
     return res.status(500).json({ error: 'Payment provider is not configured yet.' });
   }
