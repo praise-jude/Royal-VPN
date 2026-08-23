@@ -16,6 +16,7 @@ import {
 } from '@expo-google-fonts/poppins';
 
 import TabBar from './src/components/TabBar';
+import Sidebar from './src/components/Sidebar';
 import HomeScreen from './src/screens/HomeScreen';
 import ServersScreen from './src/screens/ServersScreen';
 import SecurityScreen from './src/screens/SecurityScreen';
@@ -135,6 +136,8 @@ const NETWORK_LABELS = {
 function AppContent() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = 58 + Math.max(insets.bottom, 12);
+  const { width: winWidth } = useWindowDimensions();
+  const isDesktop = winWidth > DESKTOP_BREAKPOINT;
   const [tab, setTab] = useState('home');
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -603,15 +606,18 @@ function AppContent() {
     );
   }
 
-  return (
-    <View style={styles.root}>
-      <StatusBar style="light" />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 20 }]}
-          showsVerticalScrollIndicator={false}
-        >
+  const mainContent = (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: isDesktop ? 32 : tabBarHeight + 20 },
+          isDesktop && styles.scrollContentDesktop,
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={isDesktop ? styles.desktopColumn : styles.mobileColumn}>
           {subScreen === 'split-tunnel' ? (
             <SplitTunnelScreen
               vpnApps={vpnApps}
@@ -777,22 +783,58 @@ function AppContent() {
               )}
             </>
           )}
-        </ScrollView>
-      </SafeAreaView>
-      <TabBar activeTab={tab} onChange={(t) => { setSubScreen(null); setTab(t); }} />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  return (
+    <View style={styles.root}>
+      <StatusBar style="light" />
+      {isDesktop ? (
+        <View style={styles.desktopRow}>
+          <Sidebar
+            activeTab={tab}
+            onChange={(t) => {
+              setSubScreen(null);
+              setTab(t);
+            }}
+            userEmail={authUser?.email}
+            planLabel={subscriptionPlanLabel}
+            connected={connected}
+          />
+          <View style={styles.desktopMain}>{mainContent}</View>
+        </View>
+      ) : (
+        <>
+          {mainContent}
+          <TabBar
+            activeTab={tab}
+            onChange={(t) => {
+              setSubScreen(null);
+              setTab(t);
+            }}
+          />
+        </>
+      )}
     </View>
   );
 }
 
 const WIDE_BREAKPOINT = 560;
+const DESKTOP_BREAKPOINT = 900;
+const DESKTOP_CONTENT_MAX_WIDTH = 720;
 const FRAME_MAX_WIDTH = 430;
 const FRAME_MAX_HEIGHT = 900;
 
 function ResponsiveFrame({ children }) {
   const { width, height } = useWindowDimensions();
   const isWide = width > WIDE_BREAKPOINT;
+  const isDesktop = width > DESKTOP_BREAKPOINT;
 
-  if (!isWide) {
+  // Above the desktop breakpoint, AppContent renders its own sidebar shell
+  // and fills the window directly rather than sitting inside a phone card.
+  if (!isWide || isDesktop) {
     return <View style={styles.fullBleed}>{children}</View>;
   }
 
@@ -835,6 +877,11 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { paddingTop: 8 },
+  scrollContentDesktop: { alignItems: 'center', paddingTop: 32 },
+  mobileColumn: { width: '100%' },
+  desktopColumn: { width: '100%', maxWidth: DESKTOP_CONTENT_MAX_WIDTH },
+  desktopRow: { flex: 1, flexDirection: 'row' },
+  desktopMain: { flex: 1, backgroundColor: colors.bg },
   fullBleed: { flex: 1 },
   desktopBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   phoneFrame: {
