@@ -364,7 +364,7 @@ function AppContent() {
             logEvent('disconnect', 'Could not generate a device key');
             return;
           }
-          const registration = await registerPilotPeer(publicKey);
+          const registration = await registerPilotPeer(publicKey, server.id);
           if (!registration.success) {
             setConnecting(false);
             logEvent('disconnect', registration.error || 'Could not reach the pilot server');

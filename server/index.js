@@ -78,37 +78,30 @@ async function requireAuth(req, res, next) {
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// The one real, live server backing this app. Everything else is honestly
-// marked "coming soon" rather than shown with fabricated ping/load numbers.
-const PILOT = {
-  id: 'pilot-nyc1',
-  city: 'New York',
-  country: 'United States',
-  flag: '🇺🇸',
-  host: process.env.PILOT_STATUS_HOST,
-  statusPort: Number(process.env.PILOT_STATUS_PORT || 8081),
-  statusKey: process.env.PILOT_STATUS_KEY,
-  wgHost: process.env.PILOT_WG_HOST,
-  wgPort: Number(process.env.PILOT_WG_PORT || 51820),
-  wgPublicKey: process.env.PILOT_WG_PUBLIC_KEY,
-};
+// Real, live servers backing this app. Everything else is honestly marked
+// "coming soon" rather than shown with fabricated ping/load numbers.
+const REAL_SERVERS = (() => {
+  try {
+    return JSON.parse(process.env.REAL_SERVERS || '[]');
+  } catch (e) {
+    console.error('Failed to parse REAL_SERVERS:', e.message);
+    return [];
+  }
+})();
 
 const COMING_SOON_LOCATIONS = [
-  { id: 'lon1', city: 'London', country: 'United Kingdom', flag: '🇬🇧' },
   { id: 'lag1', city: 'Lagos', country: 'Nigeria', flag: '🇳🇬' },
-  { id: 'fra1', city: 'Paris', country: 'France', flag: '🇫🇷' },
   { id: 'sin1', city: 'Singapore', country: 'Singapore', flag: '🇸🇬' },
-  { id: 'tok1', city: 'Tokyo', country: 'Japan', flag: '🇯🇵' },
+  { id: 'syd1', city: 'Sydney', country: 'Australia', flag: '🇦🇺' },
 ];
 
-async function fetchPilotStatus() {
-  if (!PILOT.host || !PILOT.statusKey) return null;
+async function fetchServerStatus(srv) {
   const started = Date.now();
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
-    const response = await fetch(`http://${PILOT.host}:${PILOT.statusPort}/status`, {
-      headers: { 'x-royal-status-key': PILOT.statusKey },
+    const response = await fetch(`http://${srv.statusHost}:${srv.statusPort || 8081}/status`, {
+      headers: { 'x-royal-status-key': srv.statusKey },
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -121,19 +114,23 @@ async function fetchPilotStatus() {
 }
 
 app.get('/servers', async (_req, res) => {
-  const live = await fetchPilotStatus();
-  const pilotServer = {
-    id: PILOT.id,
-    city: PILOT.city,
-    country: PILOT.country,
-    flag: PILOT.flag,
-    vip: false,
-    live: true,
-    status: live ? 'AVAILABLE' : 'TEMPORARILY OFFLINE',
-    pingMs: live ? live.pingMs : null,
-    loadPct: live ? live.memUsedPct : null,
-    activeUsers: live ? live.wgActivePeers : null,
-  };
+  const liveServers = await Promise.all(
+    REAL_SERVERS.map(async (srv) => {
+      const live = await fetchServerStatus(srv);
+      return {
+        id: srv.id,
+        city: srv.city,
+        country: srv.country,
+        flag: srv.flag,
+        vip: Boolean(srv.vip),
+        live: true,
+        status: live ? 'AVAILABLE' : 'TEMPORARILY OFFLINE',
+        pingMs: live ? live.pingMs : null,
+        loadPct: live ? live.memUsedPct : null,
+        activeUsers: live ? live.wgActivePeers : null,
+      };
+    })
+  );
 
   const comingSoon = COMING_SOON_LOCATIONS.map((loc) => ({
     ...loc,
@@ -145,42 +142,46 @@ app.get('/servers', async (_req, res) => {
     activeUsers: null,
   }));
 
-  res.json({ servers: [pilotServer, ...comingSoon] });
+  res.json({ servers: [...liveServers, ...comingSoon] });
 });
 
 const WG_PUBLIC_KEY_RE = /^[A-Za-z0-9+/]{42,43}=$/;
 
-app.post('/vpn/pilot-config', requireAuth, async (req, res) => {
-  if (!PILOT.wgHost || !PILOT.wgPublicKey || !PILOT.host || !PILOT.statusKey) {
-    return res.status(503).json({ error: 'The pilot server is not configured yet.' });
-  }
+// /vpn/pilot-config is a back-compat alias for builds that predate
+// multi-server support -- it just omits serverId, which defaults below.
+app.post(['/vpn/server-config', '/vpn/pilot-config'], requireAuth, async (req, res) => {
   const { publicKey } = req.body || {};
+  const serverId = req.body?.serverId || 'pilot-nyc1';
   if (typeof publicKey !== 'string' || !WG_PUBLIC_KEY_RE.test(publicKey)) {
     return res.status(400).json({ error: 'A valid WireGuard public key is required.' });
+  }
+  const srv = REAL_SERVERS.find((s) => s.id === serverId);
+  if (!srv) {
+    return res.status(404).json({ error: 'That server is not available.' });
   }
 
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
-    const response = await fetch(`http://${PILOT.host}:${PILOT.statusPort}/peer`, {
+    const response = await fetch(`http://${srv.statusHost}:${srv.statusPort || 8081}/peer`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-royal-status-key': PILOT.statusKey },
+      headers: { 'content-type': 'application/json', 'x-royal-status-key': srv.statusKey },
       body: JSON.stringify({ publicKey }),
       signal: controller.signal,
     });
     clearTimeout(timeout);
     if (!response.ok) {
-      return res.status(502).json({ error: 'Could not register this device with the pilot server.' });
+      return res.status(502).json({ error: 'Could not register this device with that server.' });
     }
     const { address } = await response.json();
     res.json({
-      endpoint: `${PILOT.wgHost}:${PILOT.wgPort}`,
-      serverPublicKey: PILOT.wgPublicKey,
+      endpoint: `${srv.wgHost}:${srv.wgPort || 51820}`,
+      serverPublicKey: srv.wgPublicKey,
       clientAddress: `${address}/32`,
       dns: '1.1.1.1',
     });
   } catch (e) {
-    res.status(502).json({ error: 'Could not reach the pilot server.' });
+    res.status(502).json({ error: 'Could not reach that server.' });
   }
 });
 

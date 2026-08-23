@@ -15,11 +15,11 @@ export const regions = [
 // health check or is honestly marked "Coming Soon".
 export const serverRegionMap = {
   'pilot-nyc1': 'americas',
-  lon1: 'europe',
+  london: 'europe',
+  frankfurt: 'europe',
   lag1: 'africa',
-  fra1: 'europe',
   sin1: 'asia',
-  tok1: 'asia',
+  syd1: 'oceania',
 };
 
 export const vpnProtocols = [
