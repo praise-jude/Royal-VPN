@@ -137,6 +137,22 @@ export const subscriptionPlans = [
       'Priority support',
     ],
   },
+  {
+    id: 'vip',
+    name: 'VIP',
+    price: null,
+    period: '/month',
+    features: [
+      'Unlimited devices',
+      'All server locations',
+      'Unlimited data',
+      'Threat Blocker',
+      'Multi-Hop routing',
+      'Family sharing (up to 6 accounts)',
+      'Priority support',
+      'Every feature, fully unlocked',
+    ],
+  },
 ];
 
 export const devices = [

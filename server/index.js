@@ -33,6 +33,7 @@ async function initDb() {
 const PLANS = {
   pro: { name: 'Pro', amountNaira: Number(process.env.PLAN_PRO_NGN || 0) },
   family: { name: 'Family', amountNaira: Number(process.env.PLAN_FAMILY_NGN || 0) },
+  vip: { name: 'VIP', amountNaira: Number(process.env.PLAN_VIP_NGN || 0) },
 };
 
 app.use(cors());
@@ -190,6 +191,7 @@ app.get('/paystack/plans', (_req, res) => {
   res.json({
     pro: { name: PLANS.pro.name, amountNaira: PLANS.pro.amountNaira },
     family: { name: PLANS.family.name, amountNaira: PLANS.family.amountNaira },
+    vip: { name: PLANS.vip.name, amountNaira: PLANS.vip.amountNaira },
   });
 });
 
