@@ -179,6 +179,7 @@ function AppContent() {
   const connectedRef = useRef(connected);
   const autoConnectRef = useRef(autoConnect);
   const connectingRef = useRef(connecting);
+  const droppedWhileConnectedRef = useRef(false);
 
   const logEvent = useCallback((type, label) => {
     eventIdCounter += 1;
@@ -524,8 +525,51 @@ function AppContent() {
     const type = networkState?.type;
     if (!type) return;
     const prev = prevNetworkTypeRef.current;
+
     if (prev !== null && prev !== type) {
-      if (type === 'WIFI') {
+      if (type === 'NONE' && connectedRef.current) {
+        // Real connectivity loss while the tunnel was up -- the OS/network
+        // dropped out from under us, not a simulated event.
+        droppedWhileConnectedRef.current = true;
+        logEvent('disconnect', 'Network connection lost');
+      } else if (type !== 'NONE' && droppedWhileConnectedRef.current) {
+        droppedWhileConnectedRef.current = false;
+        setAutoReconnecting(true);
+        (async () => {
+          let ok = true;
+          if (isRealVpnAvailable) {
+            ok = false;
+            const target = servers.find((s) => s.id === serverId) || server;
+            if (target?.live) {
+              const publicKey = await getDevicePublicKey();
+              if (publicKey) {
+                const registration = await registerPilotPeer(publicKey, target.id);
+                if (registration.success) {
+                  ok = await startRealVpn({
+                    serverPublicKey: registration.serverPublicKey,
+                    endpoint: registration.endpoint,
+                    clientAddress: registration.clientAddress,
+                    dns: registration.dns,
+                  });
+                }
+              }
+            }
+          }
+          setAutoReconnecting(false);
+          if (ok) {
+            setConnected(true);
+            logEvent(
+              'reconnect',
+              killSwitch
+                ? 'Auto-reconnected after a network interruption — Kill Switch blocked traffic during the gap'
+                : 'Auto-reconnected after a network interruption'
+            );
+          } else {
+            setConnected(false);
+            logEvent('disconnect', 'Could not automatically reconnect — tap Connect to try again');
+          }
+        })();
+      } else if (type === 'WIFI') {
         logEvent('wifi-detected', 'Joined a new Wi-Fi network — not verified as trusted');
         setProtectBanner('Unverified Wi-Fi detected');
         if (autoConnectRef.current && !connectedRef.current && !connectingRef.current) {
@@ -542,7 +586,7 @@ function AppContent() {
       }
     }
     prevNetworkTypeRef.current = type;
-  }, [networkState?.type, logEvent]);
+  }, [networkState?.type, logEvent, killSwitch, servers, serverId, server]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -552,29 +596,6 @@ function AppContent() {
     }, 4000);
     return () => clearInterval(id);
   }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (
-        connectedRef.current &&
-        !connectingRef.current &&
-        !autoReconnecting &&
-        Math.random() < 0.06
-      ) {
-        setAutoReconnecting(true);
-        setTimeout(() => {
-          setAutoReconnecting(false);
-          logEvent(
-            'reconnect',
-            killSwitch
-              ? 'Auto-reconnected after a network blip — Kill Switch blocked traffic during the gap'
-              : 'Auto-reconnected after a brief network interruption'
-          );
-        }, 1700);
-      }
-    }, 5000);
-    return () => clearInterval(id);
-  }, [autoReconnecting, killSwitch, logEvent]);
 
   if (!authChecked) {
     return (
