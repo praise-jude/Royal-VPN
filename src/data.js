@@ -100,58 +100,38 @@ export const initialTrustedNetworks = [
   { id: 2, name: 'Office Wi-Fi' },
 ];
 
+// Two tiers only: Freemium (ad-supported, free) and VIP (no ads, flat price).
+// Both get the same feature set -- the difference is ads, not functionality.
+// NOTE: 'vip' price here is a display string only. The real Paystack charge
+// amount comes from the PLAN_VIP_NGN env var on the backend (server/index.js) --
+// keep that in sync with this price or customers will see one number and be
+// charged another.
+const SHARED_PLAN_FEATURES = [
+  '3 live servers (more coming soon)',
+  '1 device',
+  'Unlimited data',
+  'Threat Blocker',
+  'Multi-Hop routing',
+  'Trusted Trading — add your own trusted sites',
+  'Priority support',
+  'Speed Test',
+  'Max Privacy mode',
+];
+
 export const subscriptionPlans = [
   {
     id: 'free',
-    name: 'Free',
+    name: 'Freemium',
     price: '₦0',
     period: '',
-    features: ['1 device', '3 server locations', '10 GB / month', 'Standard support'],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: null,
-    period: '/month',
-    features: [
-      '5 devices',
-      'All server locations',
-      'Unlimited data',
-      'Threat Blocker',
-      'Multi-Hop routing',
-      'Priority support',
-    ],
-  },
-  {
-    id: 'family',
-    name: 'Family',
-    price: null,
-    period: '/month',
-    features: [
-      '10 devices',
-      'All server locations',
-      'Unlimited data',
-      'Threat Blocker',
-      'Multi-Hop routing',
-      'Family sharing (up to 6 accounts)',
-      'Priority support',
-    ],
+    features: ['Includes ads', ...SHARED_PLAN_FEATURES],
   },
   {
     id: 'vip',
     name: 'VIP',
-    price: null,
+    price: '₦20,000',
     period: '/month',
-    features: [
-      'Unlimited devices',
-      'All server locations',
-      'Unlimited data',
-      'Threat Blocker',
-      'Multi-Hop routing',
-      'Family sharing (up to 6 accounts)',
-      'Priority support',
-      'Every feature, fully unlocked',
-    ],
+    features: ['No ads', ...SHARED_PLAN_FEATURES],
   },
 ];
 

@@ -560,7 +560,9 @@ function AppContent() {
 
   const subscriptionPlanLabel = useMemo(() => {
     const plan = subscriptionPlans.find((p) => p.id === currentPlanId);
-    return plan ? `${plan.name.toUpperCase()} PLAN` : 'PRO PLAN';
+    // Falls back to the raw id (e.g. a legacy 'pro'/'family' account from
+    // before the plan simplification) instead of guessing a tier name.
+    return plan ? `${plan.name.toUpperCase()} PLAN` : `${currentPlanId.toUpperCase()} PLAN`;
   }, [currentPlanId]);
 
   const handleAddTrustedNetwork = useCallback(() => {
