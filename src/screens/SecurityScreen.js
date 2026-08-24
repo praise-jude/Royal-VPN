@@ -1,5 +1,6 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import Pressable from '../components/Pressable';
 import Toggle from '../components/Toggle';
 import SecurityCheck from '../components/SecurityCheck';
 import ProtocolSwitcher from '../components/ProtocolSwitcher';

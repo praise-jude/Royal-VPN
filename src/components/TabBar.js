@@ -1,5 +1,6 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Pressable from './Pressable';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { tabsDef } from '../data';
 import { colors, font } from '../theme';

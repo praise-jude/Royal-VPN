@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Pressable from '../components/Pressable';
 import BackHeader from '../components/BackHeader';
 import { subscriptionPlans } from '../data';
 import { startPaystackCheckout } from '../native/payments';

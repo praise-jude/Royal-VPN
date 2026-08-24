@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import Pressable from '../components/Pressable';
 import AiRouteBanner from '../components/AiRouteBanner';
 import { regions } from '../data';
 import { colors, font } from '../theme';

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import Pressable from '../components/Pressable';
 import BackHeader from '../components/BackHeader';
 import Toggle from '../components/Toggle';
 import { colors, font } from '../theme';

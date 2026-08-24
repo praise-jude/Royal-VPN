@@ -1,5 +1,6 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import Pressable from '../components/Pressable';
 import ModeSwitcher from '../components/ModeSwitcher';
 import QualityScore from '../components/QualityScore';
 import { colors, font } from '../theme';
