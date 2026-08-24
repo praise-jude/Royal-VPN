@@ -39,9 +39,11 @@ export default function SecurityScreen({
   protocol,
   onChangeProtocol,
   trustedNetworksCount,
+  trustedServicesEnabledCount,
   onOpenSplitTunnel,
   onOpenThreatBlocker,
   onOpenTrustedNetworks,
+  onOpenTrustedServices,
 }) {
   // A real WireGuard tunnel only exists on Android today -- everywhere else,
   // "connected" is just a UI state with nothing real behind it, so these
@@ -132,13 +134,26 @@ export default function SecurityScreen({
         <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.3)" />
       </Pressable>
 
-      <Pressable style={[styles.row, { marginBottom: 0 }]} onPress={onOpenTrustedNetworks}>
+      <Pressable style={styles.row} onPress={onOpenTrustedNetworks}>
         <View style={styles.rowLeft}>
           <FontAwesome6 name="route" iconStyle="solid" size={16} color={colors.orange} style={styles.rowIcon} />
           <View style={{ flex: 1 }}>
             <Text style={styles.rowTitle}>Trusted Networks</Text>
             <Text style={styles.rowSubtitle}>
               {trustedNetworksCount} network{trustedNetworksCount === 1 ? '' : 's'} configured
+            </Text>
+          </View>
+        </View>
+        <FontAwesome6 name="chevron-right" iconStyle="solid" size={13} color="rgba(255,255,255,0.3)" />
+      </Pressable>
+
+      <Pressable style={[styles.row, { marginBottom: 0 }]} onPress={onOpenTrustedServices}>
+        <View style={styles.rowLeft}>
+          <FontAwesome6 name="chart-line" iconStyle="solid" size={16} color={colors.orange} style={styles.rowIcon} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Trusted Trading</Text>
+            <Text style={styles.rowSubtitle}>
+              {trustedServicesEnabledCount} service{trustedServicesEnabledCount === 1 ? '' : 's'} allowed
             </Text>
           </View>
         </View>

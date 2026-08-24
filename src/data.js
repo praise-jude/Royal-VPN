@@ -161,6 +161,25 @@ export const devices = [
   { id: 3, name: 'Home PC', platform: 'Windows', lastActive: 'Active yesterday', current: false },
 ];
 
+export const initialTrustedServices = [
+  {
+    id: 'royal-forex-ai',
+    name: 'Royal Forex AI',
+    domain: 'forex-ai.up.railway.app',
+    includeSubdomains: false,
+    enabled: true,
+    builtIn: true,
+  },
+  {
+    id: 'exness',
+    name: 'Exness',
+    domain: 'exness.com',
+    includeSubdomains: true,
+    enabled: true,
+    builtIn: true,
+  },
+];
+
 export const tabsDef = [
   { key: 'home', icon: 'house', label: 'Home' },
   { key: 'servers', icon: 'server', label: 'Servers' },

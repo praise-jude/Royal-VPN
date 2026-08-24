@@ -33,6 +33,8 @@ import NetworkHistoryScreen from './src/screens/NetworkHistoryScreen';
 import TrustedNetworksScreen from './src/screens/TrustedNetworksScreen';
 import PlansScreen from './src/screens/PlansScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import TrustedServicesScreen from './src/screens/TrustedServicesScreen';
+import TradingConnectionTestScreen from './src/screens/TradingConnectionTestScreen';
 import {
   isRealVpnAvailable,
   requestVpnPermission,
@@ -51,6 +53,7 @@ import {
   initialThreatCounts,
   threatDomainPool,
   initialTrustedNetworks,
+  initialTrustedServices,
   subscriptionPlans,
   vpnProtocols,
 } from './src/data';
@@ -77,6 +80,7 @@ function pickWeightedCategory() {
 let blockIdCounter = 0;
 let eventIdCounter = 0;
 let trustedNetworkIdCounter = 100;
+let trustedAuditIdCounter = 0;
 
 const STATIC_NOTIFICATIONS = [
   {
@@ -100,6 +104,9 @@ const STATIC_NOTIFICATIONS = [
 ];
 
 const APP_LOCK_STORAGE_KEY = 'royal-vpn:app-lock-enabled';
+const TRUSTED_SERVICES_KEY = 'royal-vpn:trusted-services';
+const TRUSTED_RECONNECT_POLICY_KEY = 'royal-vpn:trusted-reconnect-policy';
+const TRUSTED_AUDIT_LOG_KEY = 'royal-vpn:trusted-audit-log';
 
 // Shown only while the live server list is still loading from the backend --
 // never a stand-in for real ping/load numbers.
@@ -168,6 +175,9 @@ function AppContent() {
   const [autoReconnecting, setAutoReconnecting] = useState(false);
   const [protectBanner, setProtectBanner] = useState('');
   const [trustedNetworks, setTrustedNetworks] = useState(initialTrustedNetworks);
+  const [trustedServices, setTrustedServices] = useState(initialTrustedServices);
+  const [allowTrustedDuringReconnect, setAllowTrustedDuringReconnect] = useState(false);
+  const [trustedAuditLog, setTrustedAuditLog] = useState([]);
   const [currentPlanId, setCurrentPlanId] = useState('free');
   const [authChecked, setAuthChecked] = useState(false);
   const [authUser, setAuthUser] = useState(null);
@@ -305,6 +315,75 @@ function AppContent() {
       setLockError('Authentication failed. Try again.');
     }
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const storedServices = await AsyncStorage.getItem(TRUSTED_SERVICES_KEY);
+        if (storedServices) setTrustedServices(JSON.parse(storedServices));
+        const storedPolicy = await AsyncStorage.getItem(TRUSTED_RECONNECT_POLICY_KEY);
+        if (storedPolicy) setAllowTrustedDuringReconnect(storedPolicy === 'true');
+        const storedAudit = await AsyncStorage.getItem(TRUSTED_AUDIT_LOG_KEY);
+        if (storedAudit) {
+          const parsed = JSON.parse(storedAudit);
+          setTrustedAuditLog(parsed);
+          trustedAuditIdCounter = parsed.reduce((max, e) => Math.max(max, Number(e.id.split('-')[1]) || 0), 0);
+        }
+      } catch {
+        // corrupt or unavailable storage — keep defaults
+      }
+    })();
+  }, []);
+
+  const logTrustedAudit = useCallback((label) => {
+    trustedAuditIdCounter += 1;
+    const entry = { id: `audit-${trustedAuditIdCounter}`, label, time: Date.now() };
+    setTrustedAuditLog((list) => {
+      const next = [entry, ...list].slice(0, 50);
+      AsyncStorage.setItem(TRUSTED_AUDIT_LOG_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const handleToggleTrustedService = useCallback(
+    (id) => {
+      const target = trustedServices.find((s) => s.id === id);
+      if (!target) return;
+      const next = trustedServices.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s));
+      setTrustedServices(next);
+      AsyncStorage.setItem(TRUSTED_SERVICES_KEY, JSON.stringify(next));
+      logTrustedAudit(`${target.name} ${!target.enabled ? 'enabled' : 'disabled'}`);
+    },
+    [trustedServices, logTrustedAudit]
+  );
+
+  const handleRemoveTrustedService = useCallback(
+    (id) => {
+      const target = trustedServices.find((s) => s.id === id);
+      const next = trustedServices.filter((s) => s.id !== id);
+      setTrustedServices(next);
+      AsyncStorage.setItem(TRUSTED_SERVICES_KEY, JSON.stringify(next));
+      if (target) logTrustedAudit(`${target.name} removed from Trusted Trading`);
+    },
+    [trustedServices, logTrustedAudit]
+  );
+
+  const handleAddTrustedService = useCallback(
+    (name, domain, includeSubdomains) => {
+      const next = [...trustedServices, { id: `custom-${Date.now()}`, name, domain, includeSubdomains, enabled: true, builtIn: false }];
+      setTrustedServices(next);
+      AsyncStorage.setItem(TRUSTED_SERVICES_KEY, JSON.stringify(next));
+      logTrustedAudit(`${name} added to Trusted Trading`);
+    },
+    [trustedServices, logTrustedAudit]
+  );
+
+  const handleToggleReconnectPolicy = useCallback(() => {
+    const next = !allowTrustedDuringReconnect;
+    setAllowTrustedDuringReconnect(next);
+    AsyncStorage.setItem(TRUSTED_RECONNECT_POLICY_KEY, String(next));
+    logTrustedAudit(`Allow trusted services during VPN reconnect ${next ? 'enabled' : 'disabled'}`);
+  }, [allowTrustedDuringReconnect, logTrustedAudit]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -686,6 +765,25 @@ function AppContent() {
               onRemove={handleRemoveTrustedNetwork}
               onBack={() => setSubScreen(null)}
             />
+          ) : subScreen === 'trusted-services' ? (
+            <TrustedServicesScreen
+              services={trustedServices}
+              allowDuringReconnect={allowTrustedDuringReconnect}
+              auditLog={trustedAuditLog}
+              onBack={() => setSubScreen(null)}
+              onToggleService={handleToggleTrustedService}
+              onRemoveService={handleRemoveTrustedService}
+              onAddService={handleAddTrustedService}
+              onToggleReconnectPolicy={handleToggleReconnectPolicy}
+              onOpenTest={() => setSubScreen('trading-connection-test')}
+            />
+          ) : subScreen === 'trading-connection-test' ? (
+            <TradingConnectionTestScreen
+              services={trustedServices}
+              vpnServerLabel={server.country ? `${server.city}, ${server.country}` : server.city}
+              protocolLabel={protocolLabel}
+              onBack={() => setSubScreen('trusted-services')}
+            />
           ) : subScreen === 'plans' ? (
             <PlansScreen
               currentPlanId={currentPlanId}
@@ -768,6 +866,7 @@ function AppContent() {
                     logEvent('protocol', `Switched protocol to ${vpnProtocols.find((x) => x.key === p)?.label}`);
                   }}
                   trustedNetworksCount={trustedNetworks.length}
+                  trustedServicesEnabledCount={trustedServices.filter((s) => s.enabled).length}
                   onToggleKill={() => setKillSwitch((v) => !v)}
                   onToggleAuto={() => setAutoConnect((v) => !v)}
                   onToggle2FA={() => setTwoFA((v) => !v)}
@@ -785,6 +884,7 @@ function AppContent() {
                   onOpenSplitTunnel={() => setSubScreen('split-tunnel')}
                   onOpenThreatBlocker={() => setSubScreen('threat-blocker')}
                   onOpenTrustedNetworks={() => setSubScreen('trusted-networks')}
+                  onOpenTrustedServices={() => setSubScreen('trusted-services')}
                 />
               )}
               {tab === 'devices' && (
