@@ -753,6 +753,7 @@ function AppContent() {
               {tab === 'security' && (
                 <SecurityScreen
                   connected={connected}
+                  isRealVpnAvailable={isRealVpnAvailable}
                   killSwitch={killSwitch}
                   autoConnect={autoConnect}
                   twoFA={twoFA}

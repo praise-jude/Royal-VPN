@@ -22,6 +22,7 @@ function Row({ icon, title, subtitle, right }) {
 
 export default function SecurityScreen({
   connected,
+  isRealVpnAvailable,
   killSwitch,
   autoConnect,
   twoFA,
@@ -42,14 +43,18 @@ export default function SecurityScreen({
   onOpenThreatBlocker,
   onOpenTrustedNetworks,
 }) {
+  // A real WireGuard tunnel only exists on Android today -- everywhere else,
+  // "connected" is just a UI state with nothing real behind it, so these
+  // checks must not claim protection there.
+  const realTunnelStatus = !isRealVpnAvailable ? 'unsupported' : connected ? 'protected' : 'unprotected';
+
   const checks = [
-    { label: 'Public IP protected', pass: connected },
-    { label: 'DNS protected', pass: connected },
-    { label: 'IPv6 protected', pass: connected },
-    { label: 'WebRTC protected', pass: connected },
-    { label: 'VPN tunnel active', pass: connected },
-    { label: 'Kill switch active', pass: killSwitch },
-    { label: 'Secure DNS active', pass: connected },
+    { label: 'Public IP protected', status: realTunnelStatus },
+    { label: 'VPN tunnel active', status: realTunnelStatus },
+    { label: 'DNS protected', status: realTunnelStatus },
+    { label: 'IPv6 protected', status: 'unsupported' },
+    { label: 'WebRTC protected', status: 'unsupported' },
+    { label: 'Kill switch enforcement', status: 'unsupported' },
   ];
 
   return (
@@ -78,7 +83,7 @@ export default function SecurityScreen({
       <Row
         icon="power-off"
         title="Kill Switch"
-        subtitle="Block traffic if VPN drops"
+        subtitle="Preference saved — network-level enforcement coming soon"
         right={<Toggle value={killSwitch} onToggle={onToggleKill} />}
       />
       <View style={styles.lockdownRow}>
