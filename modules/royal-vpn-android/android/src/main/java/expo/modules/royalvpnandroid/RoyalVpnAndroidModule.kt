@@ -100,6 +100,13 @@ class RoyalVpnAndroidModule : Module() {
         val iface = Interface.Builder()
           .setKeyPair(keyPair)
           .addAddress(InetNetwork.parse(clientAddress))
+          // A private, non-routable address is enough to give the interface
+          // a valid IPv6 source. The server's peer entry only recognizes the
+          // real IPv4 address above, so any IPv6 traffic that lands here gets
+          // dropped rather than leaking out the device's normal IPv6 route --
+          // the server doesn't support real IPv6 routing yet, so blocking it
+          // is the honest, safe behavior until it does.
+          .addAddress(InetNetwork.parse("fd12:3456:789a::2/128"))
           .addDnsServer(java.net.InetAddress.getByName(dns))
           .build()
 
@@ -107,6 +114,7 @@ class RoyalVpnAndroidModule : Module() {
           .setPublicKey(Key.fromBase64(serverPublicKey))
           .setEndpoint(InetEndpoint.parse(endpoint))
           .addAllowedIp(InetNetwork.parse("0.0.0.0/0"))
+          .addAllowedIp(InetNetwork.parse("::/0"))
           .setPersistentKeepalive(25)
           .build()
 

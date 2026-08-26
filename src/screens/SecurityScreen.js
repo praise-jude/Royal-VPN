@@ -55,8 +55,12 @@ export default function SecurityScreen({
     { label: 'Public IP protected', status: realTunnelStatus },
     { label: 'VPN tunnel active', status: realTunnelStatus },
     { label: 'DNS protected', status: realTunnelStatus },
-    { label: 'IPv6 protected', status: 'unsupported' },
-    { label: 'WebRTC protected', status: 'unsupported' },
+    // The tunnel now routes ::/0 too (blocked at the server rather than
+    // leaked out the native path), and Android's VpnService captures every
+    // app's sockets system-wide -- including a browser's WebRTC/STUN
+    // traffic -- so both are covered by the same real tunnel status.
+    { label: 'IPv6 protected', status: realTunnelStatus },
+    { label: 'WebRTC protected', status: realTunnelStatus },
     { label: 'Kill switch enforcement', status: isRealVpnAvailable ? 'protected' : 'unsupported' },
   ];
 
