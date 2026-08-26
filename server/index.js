@@ -89,8 +89,13 @@ const REAL_SERVERS = (() => {
   }
 })();
 
+// vip defaults to false -- Freemium and VIP share the same server list today
+// (the only difference between the two plans is ads), so no location should
+// be paid-exclusive unless a future plan tier actually needs one.
 const COMING_SOON_LOCATIONS = [
   { id: 'lag1', city: 'Lagos', country: 'Nigeria', flag: '🇳🇬' },
+  { id: 'london', city: 'London', country: 'United Kingdom', flag: '🇬🇧' },
+  { id: 'frankfurt', city: 'Frankfurt', country: 'Germany', flag: '🇩🇪' },
   { id: 'sin1', city: 'Singapore', country: 'Singapore', flag: '🇸🇬' },
   { id: 'syd1', city: 'Sydney', country: 'Australia', flag: '🇦🇺' },
 ];
@@ -134,7 +139,7 @@ app.get('/servers', async (_req, res) => {
 
   const comingSoon = COMING_SOON_LOCATIONS.map((loc) => ({
     ...loc,
-    vip: true,
+    vip: Boolean(loc.vip),
     live: false,
     status: 'COMING SOON',
     pingMs: null,
