@@ -42,6 +42,8 @@ import {
   stopRealVpn,
   checkRealVpnActive,
   getDevicePublicKey,
+  startTrafficGuard,
+  stopTrafficGuard,
 } from './src/native/royalVpn';
 import { signup as apiSignup, login as apiLogin, restoreSession, logout as apiLogout } from './src/native/auth';
 import { fetchServers } from './src/native/servers';
@@ -154,6 +156,9 @@ function AppContent() {
   const [serverId, setServerId] = useState(null);
   const [killSwitch, setKillSwitch] = useState(true);
   const [lockdownEnabled, setLockdownEnabled] = useState(false);
+  // True only while Kill Switch needs the traffic guard up around an
+  // in-progress or failed auto-reconnect -- see the network-change effect.
+  const [killSwitchGuardActive, setKillSwitchGuardActive] = useState(false);
   const [autoConnect, setAutoConnect] = useState(true);
   const [twoFA, setTwoFA] = useState(false);
   const [favorites, setFavorites] = useState({});
@@ -466,6 +471,7 @@ function AppContent() {
           }
           setConnecting(false);
           setConnected(true);
+          setKillSwitchGuardActive(false);
           logEvent('connect', 'Connected');
         } else {
           setTimeout(() => {
@@ -602,6 +608,19 @@ function AppContent() {
     connectingRef.current = connecting;
   }, [connecting]);
 
+  // Single source of truth for the real traffic guard: on whenever Royal
+  // Lockdown wants no unprotected traffic ever, or Kill Switch needs it for
+  // an in-progress/failed auto-reconnect. Off otherwise.
+  useEffect(() => {
+    if (!isRealVpnAvailable) return;
+    const shouldGuard = (lockdownEnabled && !connected) || killSwitchGuardActive;
+    if (shouldGuard) {
+      startTrafficGuard();
+    } else {
+      stopTrafficGuard();
+    }
+  }, [lockdownEnabled, connected, killSwitchGuardActive]);
+
   useEffect(() => {
     const type = networkState?.type;
     if (!type) return;
@@ -616,6 +635,10 @@ function AppContent() {
       } else if (type !== 'NONE' && droppedWhileConnectedRef.current) {
         droppedWhileConnectedRef.current = false;
         setAutoReconnecting(true);
+        // Real leak window: the network is back but the WireGuard tunnel
+        // hasn't re-established yet. If Kill Switch is on, block every
+        // other app's traffic for the duration of this attempt.
+        if (killSwitch) setKillSwitchGuardActive(true);
         (async () => {
           let ok = true;
           if (isRealVpnAvailable) {
@@ -639,6 +662,7 @@ function AppContent() {
           setAutoReconnecting(false);
           if (ok) {
             setConnected(true);
+            setKillSwitchGuardActive(false);
             logEvent(
               'reconnect',
               killSwitch
@@ -647,7 +671,16 @@ function AppContent() {
             );
           } else {
             setConnected(false);
-            logEvent('disconnect', 'Could not automatically reconnect — tap Connect to try again');
+            // If Kill Switch is on, leave the guard up rather than restore
+            // unprotected traffic just because reconnecting failed -- that's
+            // the entire point of a kill switch.
+            if (!killSwitch) setKillSwitchGuardActive(false);
+            logEvent(
+              'disconnect',
+              killSwitch
+                ? 'Could not automatically reconnect — Kill Switch is blocking traffic until you tap Connect'
+                : 'Could not automatically reconnect — tap Connect to try again'
+            );
           }
         })();
       } else if (type === 'WIFI') {

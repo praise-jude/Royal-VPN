@@ -49,3 +49,34 @@ export async function checkRealVpnActive() {
     return false;
   }
 }
+
+// Real Kill Switch / Royal Lockdown enforcement: a black-hole VPN interface
+// that blocks every other app's traffic until the real WireGuard tunnel is
+// back up. See RoyalGuardVpnService.kt for how this actually blocks traffic
+// rather than just flipping a UI toggle.
+export async function startTrafficGuard() {
+  if (!isRealVpnAvailable) return false;
+  try {
+    return await RoyalVpnAndroid.startGuardAsync();
+  } catch (e) {
+    return false;
+  }
+}
+
+export async function stopTrafficGuard() {
+  if (!isRealVpnAvailable) return false;
+  try {
+    return await RoyalVpnAndroid.stopGuardAsync();
+  } catch (e) {
+    return false;
+  }
+}
+
+export async function checkTrafficGuardActive() {
+  if (!isRealVpnAvailable) return false;
+  try {
+    return await RoyalVpnAndroid.isGuardActive();
+  } catch (e) {
+    return false;
+  }
+}

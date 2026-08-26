@@ -57,7 +57,7 @@ export default function SecurityScreen({
     { label: 'DNS protected', status: realTunnelStatus },
     { label: 'IPv6 protected', status: 'unsupported' },
     { label: 'WebRTC protected', status: 'unsupported' },
-    { label: 'Kill switch enforcement', status: 'unsupported' },
+    { label: 'Kill switch enforcement', status: isRealVpnAvailable ? 'protected' : 'unsupported' },
   ];
 
   return (
@@ -86,7 +86,11 @@ export default function SecurityScreen({
       <Row
         icon="power-off"
         title="Kill Switch"
-        subtitle="Preference saved — network-level enforcement coming soon"
+        subtitle={
+          isRealVpnAvailable
+            ? "Blocks other apps' traffic during automatic reconnects"
+            : 'Preference saved — not enforced on this platform'
+        }
         right={<Toggle value={killSwitch} onToggle={onToggleKill} />}
       />
       <View style={styles.lockdownRow}>

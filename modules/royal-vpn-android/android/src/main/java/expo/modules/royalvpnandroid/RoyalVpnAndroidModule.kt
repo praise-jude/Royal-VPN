@@ -2,7 +2,9 @@ package expo.modules.royalvpnandroid
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.net.VpnService
+import android.os.Build
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
@@ -145,6 +147,48 @@ class RoyalVpnAndroidModule : Module() {
       } catch (e: Exception) {
         promise.resolve(false)
       }
+    }
+
+    // Real Kill Switch / Royal Lockdown enforcement: establishes a
+    // black-hole VPN interface that blocks every other app's traffic
+    // (this app is excluded so it can still reach the network to
+    // reconnect) until the real WireGuard tunnel is back up.
+    AsyncFunction("startGuardAsync") { promise: Promise ->
+      val context = appContext.reactContext
+      if (context == null) {
+        promise.resolve(false)
+        return@AsyncFunction
+      }
+      try {
+        val intent = Intent(context, RoyalGuardVpnService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          context.startForegroundService(intent)
+        } else {
+          context.startService(intent)
+        }
+        promise.resolve(true)
+      } catch (e: Exception) {
+        promise.resolve(false)
+      }
+    }
+
+    AsyncFunction("stopGuardAsync") { promise: Promise ->
+      val context = appContext.reactContext
+      if (context == null) {
+        promise.resolve(false)
+        return@AsyncFunction
+      }
+      try {
+        val intent = Intent(context, RoyalGuardVpnService::class.java).setAction(RoyalGuardVpnService.ACTION_STOP)
+        context.startService(intent)
+        promise.resolve(true)
+      } catch (e: Exception) {
+        promise.resolve(false)
+      }
+    }
+
+    AsyncFunction("isGuardActive") { promise: Promise ->
+      promise.resolve(RoyalGuardVpnService.isActive)
     }
 
     OnActivityResult { _, payload ->
