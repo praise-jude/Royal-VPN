@@ -15,7 +15,8 @@
         "backgroundColor": "#0B1E4D",
         "foregroundImage": "./assets/icon.png"
       },
-      "package": "com.judeewah.royalvpn"
+      "package": "com.judeewah.royalvpn",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
